@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Design Direction Showcase · NYU Admissions Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --violet: #57068c;
+      --lilac: #c4b5fd;
+      --ink: #161624;
+      --slate: rgba(22, 22, 36, 0.72);
+      --bg: #f6f6f9;
+    }
+
+    body {
+      margin: 0;
+      padding: 32px;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.5;
+    }
+
+    h1 {
+      font-size: 34px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    p.lead {
+      font-size: 16px;
+      max-width: 760px;
+      color: var(--slate);
+      margin-bottom: 24px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .toolbar button {
+      border: none;
+      background: white;
+      color: var(--ink);
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-weight: 600;
+      box-shadow: 0 8px 18px -14px rgba(17, 16, 35, 0.6);
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .toolbar button:hover,
+    .toolbar button:focus {
+      outline: none;
+      background: var(--violet);
+      color: white;
+      transform: translateY(-1px);
+    }
+
+    .toolbar button.active {
+      background: var(--violet);
+      color: white;
+    }
+
+    .layout {
+      display: grid;
+      gap: 24px;
+      grid-template-columns: minmax(260px, 320px) 1fr;
+    }
+
+    .thumbnail-nav {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .thumb {
+      background: white;
+      border-radius: 14px;
+      padding: 16px;
+      border: 1px solid rgba(17, 16, 35, 0.1);
+      cursor: pointer;
+      transition: all 0.18s ease;
+      display: grid;
+      gap: 6px;
+    }
+
+    .thumb.active,
+    .thumb:hover {
+      border-color: var(--violet);
+      box-shadow: 0 16px 32px -26px rgba(87, 6, 140, 0.55);
+      transform: translateY(-1px);
+    }
+
+    .thumb h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .thumb span {
+      font-size: 13px;
+      color: var(--slate);
+    }
+
+    .direction {
+      display: none;
+      background: white;
+      border-radius: 18px;
+      border: 1px solid rgba(17, 16, 35, 0.08);
+      padding: 28px;
+      box-shadow: 0 28px 60px -36px rgba(17, 16, 35, 0.32);
+    }
+
+    .direction.active {
+      display: grid;
+      gap: 24px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--violet);
+      background: rgba(87, 6, 140, 0.12);
+    }
+
+    .direction header {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .direction h2 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .direction .grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .direction ul {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--slate);
+    }
+
+    .screen {
+      border-radius: 18px;
+      border: 1px solid rgba(17, 16, 35, 0.1);
+      background: linear-gradient(140deg, rgba(87, 6, 140, 0.08), rgba(196, 181, 253, 0.16));
+      padding: 24px;
+      box-shadow: 0 32px 60px -44px rgba(17, 16, 35, 0.7);
+      display: grid;
+      gap: 20px;
+      transition: all 0.3s ease;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .screen-shell {
+      background: rgba(255, 255, 255, 0.85);
+      border-radius: 14px;
+      border: 1px solid rgba(17, 16, 35, 0.08);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 520px;
+    }
+
+    .screen-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 24px;
+      background: linear-gradient(90deg, rgba(87, 6, 140, 0.08), rgba(255, 255, 255, 0));
+      border-bottom: 1px solid rgba(17, 16, 35, 0.08);
+    }
+
+    .screen-header .title {
+      font-weight: 600;
+      font-size: 20px;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .screen-header .title span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: rgba(87, 6, 140, 0.12);
+      color: var(--violet);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .screen-header .actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .screen-header .actions button {
+      border: none;
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-weight: 600;
+      cursor: pointer;
+      background: rgba(87, 6, 140, 0.1);
+      color: var(--violet);
+      transition: all 0.18s ease;
+    }
+
+    .screen-header .actions button.primary {
+      background: var(--violet);
+      color: white;
+    }
+
+    .screen-header .actions button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px -12px rgba(87, 6, 140, 0.5);
+    }
+
+    .screen-body {
+      display: grid;
+      grid-template-columns: 220px 1fr 220px;
+      gap: 0;
+      min-height: 420px;
+    }
+
+    .screen-body .nav {
+      padding: 20px;
+      border-right: 1px solid rgba(17, 16, 35, 0.08);
+      background: rgba(239, 232, 255, 0.4);
+      display: grid;
+      gap: 12px;
+    }
+
+    .screen-body .nav .nav-item {
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--slate);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(87, 6, 140, 0.08);
+    }
+
+    .screen-body .nav .nav-item.active {
+      background: var(--violet);
+      color: #fff;
+      box-shadow: 0 10px 20px -16px rgba(87, 6, 140, 0.9);
+    }
+
+    .screen-body .content {
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+      background: #fff;
+    }
+
+    .screen-body .content .status-banner {
+      border-radius: 14px;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      background: linear-gradient(90deg, rgba(87, 6, 140, 0.1), rgba(87, 6, 140, 0.02));
+      border: 1px solid rgba(87, 6, 140, 0.2);
+    }
+
+    .screen-body .content .status-banner span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(0, 160, 120, 0.14);
+      color: #0f8b6e;
+      font-weight: 600;
+    }
+
+    .screen-body .content .table {
+      border-radius: 16px;
+      border: 1px solid rgba(17, 16, 35, 0.08);
+      overflow: hidden;
+      box-shadow: inset 0 0 0 1px rgba(17, 16, 35, 0.04);
+      display: grid;
+      grid-template-rows: auto 1fr;
+      background: #fff;
+    }
+
+    .table-head {
+      display: grid;
+      grid-template-columns: 120px 1fr 120px 120px 120px;
+      padding: 12px 20px;
+      background: rgba(87, 6, 140, 0.08);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--slate);
+    }
+
+    .table-row {
+      display: grid;
+      grid-template-columns: 120px 1fr 120px 120px 120px;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      font-size: 14px;
+      border-top: 1px solid rgba(17, 16, 35, 0.06);
+      transition: background 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .table-row .badge {
+      background: rgba(15, 139, 110, 0.12);
+      color: #0f8b6e;
+    }
+
+    .table-row .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(87, 6, 140, 0.12);
+      color: var(--violet);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .table-row.highlight {
+      background: rgba(135, 120, 255, 0.14);
+      box-shadow: inset 0 0 0 1px rgba(87, 6, 140, 0.3);
+    }
+
+    .screen-body .audit {
+      padding: 20px;
+      border-left: 1px solid rgba(17, 16, 35, 0.08);
+      background: rgba(17, 16, 35, 0.04);
+      display: grid;
+      gap: 14px;
+    }
+
+    .audit .event {
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.6);
+      border: 1px solid rgba(17, 16, 35, 0.08);
+      font-size: 13px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .audit .event strong {
+      color: var(--violet);
+    }
+
+    .timeline-main {
+      grid-template-columns: 280px 1fr;
+    }
+
+    .timeline-track {
+      display: grid;
+      gap: 14px;
+      padding: 24px;
+      border-left: 1px solid rgba(87, 6, 140, 0.12);
+      background: rgba(48, 16, 92, 0.06);
+    }
+
+    .timeline-node {
+      border-radius: 14px;
+      padding: 14px;
+      background: rgba(48, 16, 92, 0.2);
+      color: #f2edff;
+      display: grid;
+      gap: 6px;
+      position: relative;
+    }
+
+    .timeline-node::before {
+      content: "";
+      position: absolute;
+      left: -18px;
+      top: 16px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #f2edff;
+      box-shadow: 0 0 0 4px rgba(242, 237, 255, 0.35);
+    }
+
+    .metric-card {
+      display: grid;
+      gap: 6px;
+      padding: 16px;
+      border-radius: 16px;
+      background: rgba(21, 128, 61, 0.14);
+      border: 1px solid rgba(21, 128, 61, 0.18);
+      color: #14532d;
+    }
+
+    .metric-card.warning {
+      background: rgba(234, 179, 8, 0.2);
+      border-color: rgba(234, 179, 8, 0.28);
+      color: #854d0e;
+    }
+
+    .metric-card.info {
+      background: rgba(79, 70, 229, 0.2);
+      border-color: rgba(79, 70, 229, 0.28);
+      color: #312e81;
+    }
+
+    .card-stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .card-stack .device-card {
+      border-radius: 16px;
+      padding: 18px;
+      background: linear-gradient(135deg, rgba(250, 204, 21, 0.18), rgba(255, 255, 255, 0.8));
+      border: 1px solid rgba(250, 204, 21, 0.25);
+      display: grid;
+      gap: 8px;
+    }
+
+    .kanban-columns {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .kanban-column {
+      border-radius: 16px;
+      background: rgba(34, 197, 94, 0.08);
+      border: 1px solid rgba(34, 197, 94, 0.18);
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .kanban-column.warning {
+      background: rgba(234, 179, 8, 0.16);
+      border-color: rgba(234, 179, 8, 0.25);
+    }
+
+    .kanban-column.error {
+      background: rgba(248, 113, 113, 0.16);
+      border-color: rgba(248, 113, 113, 0.26);
+    }
+
+    .kanban-column .column-header {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .kanban-card {
+      border-radius: 12px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.8);
+      font-size: 13px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .matrix-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+    }
+
+    .matrix-cell {
+      padding: 18px;
+      border-radius: 14px;
+      background: rgba(59, 130, 246, 0.14);
+      color: #1d4ed8;
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      display: grid;
+      gap: 6px;
+      min-height: 90px;
+    }
+
+    .matrix-cell.alert {
+      background: rgba(248, 113, 113, 0.18);
+      border-color: rgba(248, 113, 113, 0.28);
+      color: #b91c1c;
+    }
+
+    .timeline-detail {
+      padding: 24px;
+      background: rgba(242, 237, 255, 0.5);
+      border-radius: 16px;
+      border: 1px solid rgba(48, 16, 92, 0.2);
+      display: grid;
+      gap: 12px;
+    }
+
+    .viewport-tablet .screen {
+      max-width: 760px;
+    }
+
+    .viewport-tablet .screen-body {
+      grid-template-columns: 200px 1fr;
+    }
+
+    .viewport-tablet .screen-body .audit {
+      display: none;
+    }
+
+    .viewport-tablet.direction-4 .screen-body,
+    .viewport-tablet.direction-5 .screen-body {
+      grid-template-columns: 1fr;
+    }
+
+    .viewport-tablet.direction-4 .screen-body .nav {
+      display: flex;
+      flex-direction: row;
+      overflow-x: auto;
+    }
+
+    .viewport-mobile .screen {
+      max-width: 420px;
+      padding: 16px;
+    }
+
+    .viewport-mobile .screen-shell {
+      grid-template-rows: auto 1fr;
+    }
+
+    .viewport-mobile .screen-header {
+      padding: 16px;
+      flex-direction: column;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .viewport-mobile .screen-header .actions {
+      width: 100%;
+    }
+
+    .viewport-mobile .screen-header .actions button {
+      flex: 1;
+    }
+
+    .viewport-mobile .screen-body {
+      grid-template-columns: 1fr;
+    }
+
+    .viewport-mobile .screen-body .nav {
+      display: flex;
+      overflow-x: auto;
+      padding: 16px;
+    }
+
+    .viewport-mobile .screen-body .nav .nav-item {
+      min-width: 140px;
+    }
+
+    .viewport-mobile .screen-body .content .table,
+    .viewport-tablet .screen-body .content .table {
+      overflow-x: auto;
+    }
+
+    .viewport-mobile .table-head,
+    .viewport-mobile .table-row,
+    .viewport-tablet .table-head,
+    .viewport-tablet .table-row {
+      grid-template-columns: 160px 1fr 140px;
+    }
+
+    .viewport-mobile .screen-body .audit {
+      display: none;
+    }
+
+    .nav-controls {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 18px;
+      gap: 12px;
+    }
+
+    .nav-controls button {
+      flex: 1;
+      padding: 12px 16px;
+      border-radius: 14px;
+      border: none;
+      background: white;
+      font-weight: 600;
+      box-shadow: 0 12px 24px -20px rgba(17, 16, 35, 0.6);
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .nav-controls button:hover,
+    .nav-controls button:focus {
+      background: var(--violet);
+      color: white;
+      outline: none;
+    }
+
+    @media (max-width: 960px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .thumbnail-nav {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Design Direction Showcase</h1>
+  <p class="lead">
+    Explore six fully realized directions for the NYU Admissions device dashboard. Each option reimagines the Empire audit spine with different hierarchy, density, and storytelling. Use the controls to jump between directions and preview desktop, tablet, or mobile renderings.
+  </p>
+
+  <div class="toolbar" role="toolbar" aria-label="Viewport toggle">
+    <span style="font-weight:600; color: var(--slate);">Responsive preview:</span>
+    <button type="button" class="viewport-btn active" data-viewport="desktop" aria-pressed="true">Desktop</button>
+    <button type="button" class="viewport-btn" data-viewport="tablet" aria-pressed="false">Tablet</button>
+    <button type="button" class="viewport-btn" data-viewport="mobile" aria-pressed="false">Mobile</button>
+  </div>
+
+  <div class="layout viewport-desktop direction-1" id="layout">
+    <aside class="thumbnail-nav" aria-label="Design direction list">
+      <div class="thumb active" tabindex="0" data-target="direction-1">
+        <h3>Empire Spine</h3>
+        <span>Grid-first audit rail</span>
+      </div>
+      <div class="thumb" tabindex="0" data-target="direction-2">
+        <h3>Plaza Timeline</h3>
+        <span>Chronology spotlight</span>
+      </div>
+      <div class="thumb" tabindex="0" data-target="direction-3">
+        <h3>Metro Insight</h3>
+        <span>Metrics lead grid</span>
+      </div>
+      <div class="thumb" tabindex="0" data-target="direction-4">
+        <h3>Meridian Cards</h3>
+        <span>Card-first governance</span>
+      </div>
+      <div class="thumb" tabindex="0" data-target="direction-5">
+        <h3>Skyline Kanban</h3>
+        <span>Stage-based roster</span>
+      </div>
+      <div class="thumb" tabindex="0" data-target="direction-6">
+        <h3>Signal Matrix</h3>
+        <span>Signal-driven grid</span>
+      </div>
+    </aside>
+
+    <section class="direction active" id="direction-1">
+      <header>
+        <span class="badge">Empire Layout · Default Pick</span>
+        <h2>Hero Grid with Audit Spine</h2>
+        <p>
+          Purest expression of the demo story: the grid owns center stage with seven dense columns, while a three-column audit spine keeps sync heartbeat, governance badges, and transfer history within thumb reach. Perfect for live walk-throughs where managers chase specific devices.
+        </p>
+      </header>
+
+      <div class="screen direction-1">
+        <div class="screen-shell">
+          <div class="screen-header">
+            <div class="title">Device Roster <span>Sync healthy 38s ago</span></div>
+            <div class="actions">
+              <button>Share audit</button>
+              <button class="primary">Export CSV</button>
+            </div>
+          </div>
+          <div class="screen-body">
+            <aside class="nav">
+              <div class="nav-item active">Dashboard</div>
+              <div class="nav-item">Drift reports</div>
+              <div class="nav-item">Transfers</div>
+              <div class="nav-item">Audit history</div>
+              <div class="nav-item">Governance settings</div>
+            </aside>
+            <main class="content">
+              <div class="status-banner">
+                <div>
+                  <strong>Live roster</strong> · 146 devices · Deterministic anonymization active
+                </div>
+                <span>Heartbeat • 38s</span>
+              </div>
+              <div class="table">
+                <div class="table-head">
+                  <span>Device ID</span>
+                  <span>Assigned to</span>
+                  <span>Status</span>
+                  <span>Condition</span>
+                  <span>Offboarding</span>
+                </div>
+                <div class="table-row highlight">
+                  <span>NYU-00521</span>
+                  <span>Jordan Patel</span>
+                  <span><span class="chip">Active</span></span>
+                  <span>Good</span>
+                  <span><span class="badge">None</span></span>
+                </div>
+                <div class="table-row">
+                  <span>NYU-00498</span>
+                  <span>Jamie Chen</span>
+                  <span><span class="chip">Active</span></span>
+                  <span>Good</span>
+                  <span><span class="badge" style="background:rgba(234,179,8,0.14); color:#8a4c00;">Pending</span></span>
+                </div>
+                <div class="table-row">
+                  <span>NYU-00312</span>
+                  <span>Alex Rivera</span>
+                  <span><span class="chip">Loaner</span></span>
+                  <span>Needs Repair</span>
+                  <span><span class="badge" style="background:rgba(248,113,113,0.14); color:#b91c1c;">Flagged</span></span>
+                </div>
+                <div class="table-row">
+                  <span>NYU-00241</span>
+                  <span>Samira Das</span>
+                  <span><span class="chip">Active</span></span>
+                  <span>Excellent</span>
+                  <span><span class="badge">None</span></span>
+                </div>
+              </div>
+            </main>
+            <aside class="audit">
+              <div class="event">
+                <strong>Sync success</strong>
+                <span>Ran 38s ago · 142 rows processed</span>
+              </div>
+              <div class="event">
+                <strong>Anonymization preset</strong>
+                <span>Demo-safe mode enabled by Aditya · 09:24</span>
+              </div>
+              <div class="event">
+                <strong>Transfer logged</strong>
+                <span>NYU-00498 reassigned · diff snapshot saved</span>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <section>
+          <h3>Golden Moments</h3>
+          <ul>
+            <li>Heartbeat ribbon pulses with every sheet ingest, plus timestamp callout.</li>
+            <li>Column filters animate as chips that display counts à la GitLab.</li>
+            <li>Device drawer slides over grid with audit timeline stacked vertically.</li>
+          </ul>
+        </section>
+        <section>
+          <h3>Best For</h3>
+          <ul>
+            <li>Live demo sessions</li>
+            <li>Operational reviews</li>
+            <li>Manager onboarding</li>
+          </ul>
+        </section>
+      </div>
+    </section>
+
+    <section class="direction" id="direction-2">
+      <header>
+        <span class="badge" style="background: rgba(48,16,92,0.22); color: #f2edff;">Audit Spotlight</span>
+        <h2>Plaza Timeline</h2>
+        <p>
+          A chronology-first canvas where the audit spine balloons into the primary canvas. Timeline nodes drive the experience, with the grid dimmed until reviewers select an event. Ideal when compliance questions dominate the conversation.
+        </p>
+      </header>
+
+      <div class="screen direction-2">
+        <div class="screen-shell">
+          <div class="screen-header" style="background:linear-gradient(90deg, rgba(48,16,92,0.28), rgba(255,255,255,0)); color:#f2edff;">
+            <div class="title" style="color:#f2edff;">Audit Timeline <span style="background:rgba(242,237,255,0.2); color:#f2edff;">3 escalations</span></div>
+            <div class="actions">
+              <button style="background:rgba(242,237,255,0.18); color:#f2edff;">Share digest</button>
+              <button class="primary">Export evidence</button>
+            </div>
+          </div>
+          <div class="screen-body timeline-main">
+            <div class="timeline-detail">
+              <strong>Event detail: Manual override</strong>
+              <span>Handled by Jordan Patel, 09:24</span>
+              <span>• Device NYU-00312 reassigned to offboarding queue.<br>• Governance note: awaiting confirmation from compliance.</span>
+              <button style="justify-self:start; border:none; background:rgba(242,237,255,0.4); color:#30105c; padding:8px 14px; border-radius:999px; font-weight:600;">Open device drawer</button>
+            </div>
+            <div class="timeline-track">
+              <div class="timeline-node">
+                <strong>Sync success · 08:57</strong>
+                <span>142 records processed · 1 warning (stale device)</span>
+              </div>
+              <div class="timeline-node" style="background:rgba(248,113,113,0.3);">
+                <strong>Manual override · 09:24</strong>
+                <span>NYU-00312 flagged for offboarding</span>
+              </div>
+              <div class="timeline-node" style="background:rgba(168,85,247,0.3);">
+                <strong>Anonymization toggled · 09:24</strong>
+                <span>Demo-safe preset enabled by Aditya</span>
+              </div>
+              <div class="timeline-node">
+                <strong>Compliance note · 09:30</strong>
+                <span>Awaiting confirmation from leadership</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <section>
+          <h3>Golden Moments</h3>
+          <ul>
+            <li>Timeline beads glow to indicate state (Healthy, Needs Review, Override).</li>
+            <li>Detail drawer sits atop frosted grid, focusing on compliance narrative.</li>
+            <li>Export panel surfaces recommended evidence bundles per event.</li>
+          </ul>
+        </section>
+        <section>
+          <h3>Best For</h3>
+          <ul>
+            <li>Compliance workshops</li>
+            <li>Incident retrospectives</li>
+            <li>Executive governance reviews</li>
+          </ul>
+        </section>
+      </div>
+    </section>
+
+    <section class="direction" id="direction-3">
+      <header>
+        <span class="badge" style="background: rgba(31,41,255,0.14); color: #1f29ff;">Insight Driven</span>
+        <h2>Metro Insight</h2>
+        <p>
+          Metrics lead the conversation. A trio of anomaly cards sits left, the grid holds center, and a quick-action rail on the right powers exports, anonymization, and saved filters. A balance of signal and detail for pre-meeting prep.
+        </p>
+      </header>
+
+      <div class="screen direction-3">
+        <div class="screen-shell">
+          <div class="screen-header" style="background:linear-gradient(90deg, rgba(31, 41, 255, 0.16), rgba(255,255,255,0));">
+            <div class="title">Insight Dashboard <span style="background:rgba(31,41,255,0.12); color:#1f29ff;">3 anomalies</span></div>
+            <div class="actions">
+              <button>Save view</button>
+              <button class="primary">Present mode</button>
+            </div>
+          </div>
+          <div class="screen-body" style="grid-template-columns: 240px 1fr 200px;">
+            <aside class="nav" style="background:rgba(31,41,255,0.06);">
+              <div class="metric-card">
+                <strong>Loaner pool</strong>
+                <span>12 / 40 in use</span>
+                <small>+3 vs yesterday</small>
+              </div>
+              <div class="metric-card warning">
+                <strong>Needs repair</strong>
+                <span>6 devices</span>
+                <small>2 flagged today</small>
+              </div>
+              <div class="metric-card info">
+                <strong>Transfer backlog</strong>
+                <span>4 approvals</span>
+                <small>Review in governance banner</small>
+              </div>
+            </aside>
+            <main class="content">
+              <div class="status-banner">
+                <div><strong>Focus view</strong> · Spotlighting anomaly cards first, then detailed roster.</div>
+                <span>Insight mode</span>
+              </div>
+              <div class="table">
+                <div class="table-head">
+                  <span>Device ID</span>
+                  <span>Assigned to</span>
+                  <span>Status</span>
+                  <span>Condition</span>
+                  <span>Offboarding</span>
+                </div>
+                <div class="table-row">
+                  <span>NYU-00521</span>
+                  <span>Jordan Patel</span>
+                  <span><span class="chip">Active</span></span>
+                  <span>Good</span>
+                  <span><span class="badge">None</span></span>
+                </div>
+                <div class="table-row highlight">
+                  <span>NYU-00433</span>
+                  <span>Loaner Pool</span>
+                  <span><span class="chip">Loaner</span></span>
+                  <span>Needs Repair</span>
+                  <span><span class="badge" style="background:rgba(248,113,113,0.14); color:#b91c1c;">Flagged</span></span>
+                </div>
+                <div class="table-row">
+                  <span>NYU-00312</span>
+                  <span>Alex Rivera</span>
+                  <span><span class="chip">Active</span></span>
+                  <span>Fair</span>
+                  <span><span class="badge" style="background:rgba(234,179,8,0.14); color:#8a4c00;">Pending</span></span>
+                </div>
+                <div class="table-row">
+                  <span>NYU-00288</span>
+                  <span>Jamie Chen</span>
+                  <span><span class="chip">Active</span></span>
+                  <span>Excellent</span>
+                  <span><span class="badge">None</span></span>
+                </div>
+              </div>
+            </main>
+            <aside class="audit" style="background:rgba(31,41,255,0.06);">
+              <div class="event">
+                <strong>Quick actions</strong>
+                <span>• Export anomaly summary<br>• Share to governance slack<br>• Archive resolved anomalies</span>
+              </div>
+              <div class="event">
+                <strong>Preset filters</strong>
+                <span>Loaner risk · Repair queue · Demo-safe only</span>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <section>
+          <h3>Golden Moments</h3>
+          <ul>
+            <li>Metric cards shimmer subtly when thresholds trip.</li>
+            <li>Quick action drawer keeps anonymize/export/share anchored.</li>
+            <li>Grid rows display micro badges for status (Loaner, Needs Service, Pending Transfer).</li>
+          </ul>
+        </section>
+        <section>
+          <h3>Best For</h3>
+          <ul>
+            <li>Morning stand-ups</li>
+            <li>Prep before leadership syncs</li>
+            <li>Signals-first monitoring</li>
+          </ul>
+        </section>
+      </div>
+    </section>
+
+    <section class="direction" id="direction-4">
+      <header>
+        <span class="badge" style="background: rgba(250,204,21,0.22); color: #8a4c00;">Card Narrative</span>
+        <h2>Meridian Cards</h2>
+        <p>
+          Device cards become the hero. Each card stacks owner, status, and last audit note, with the grid tucked into a secondary tab. Scales beautifully to tablet portrait where cards swipe horizontally.
+        </p>
+      </header>
+
+      <div class="screen direction-4">
+        <div class="screen-shell">
+          <div class="screen-header" style="background:linear-gradient(90deg, rgba(250,204,21,0.24), rgba(255,255,255,0));">
+            <div class="title">Card Narrative <span style="background:rgba(250,204,21,0.25); color:#8a4c00;">Story mode</span></div>
+            <div class="actions">
+              <button>Save script</button>
+              <button class="primary">Launch tablet view</button>
+            </div>
+          </div>
+          <div class="screen-body" style="grid-template-columns: 320px 1fr;">
+            <aside class="nav" style="background:rgba(250,204,21,0.12);">
+              <div class="device-card">
+                <strong>NYU-00521 · Jordan Patel</strong>
+                <span>Status: Active · Good condition</span>
+                <span>Last audit note: Laptop issued during open house.</span>
+              </div>
+              <div class="device-card" style="background:linear-gradient(135deg, rgba(250,204,21,0.32), rgba(255,255,255,0.9));">
+                <strong>NYU-00433 · Loaner Pool</strong>
+                <span>Status: Loaner · Needs repair</span>
+                <span>Action: Prep for offboarding demo.</span>
+              </div>
+              <div class="device-card">
+                <strong>NYU-00312 · Alex Rivera</strong>
+                <span>Status: Active · Fair condition</span>
+                <span>Note: Awaiting compliance decision.</span>
+              </div>
+            </aside>
+            <main class="content">
+              <div class="status-banner">
+                <div><strong>Card flow engaged</strong> · Swipe between narrative cards, tap to reveal drawers.</div>
+                <span>Portrait preview</span>
+              </div>
+              <div class="card-stack">
+                <div class="device-card" style="background:linear-gradient(135deg, rgba(250,204,21,0.28), rgba(255,255,255,0.92));">
+                  <strong>Handoff checklist</strong>
+                  <span>1. Verify anonymization active<br>2. Confirm transfer note<br>3. Capture audit snapshot</span>
+                </div>
+                <div class="device-card" style="background:linear-gradient(135deg, rgba(168,85,247,0.22), rgba(255,255,255,0.92));">
+                  <strong>Swipe gestures</strong>
+                  <span>Left: timeline · Right: device drawer</span>
+                  <span>Long-press: share story moment</span>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <section>
+          <h3>Golden Moments</h3>
+          <ul>
+            <li>Cards fan out with depth, revealing anonymized chips on hover.</li>
+            <li>Swipe gestures switch between roster and audit log on tablets.</li>
+            <li>Inline action buttons reveal labels using the icon-first animation language.</li>
+          </ul>
+        </section>
+        <section>
+          <h3>Best For</h3>
+          <ul>
+            <li>Tablet walk-throughs</li>
+            <li>Training sessions</li>
+            <li>Scenario storytelling</li>
+          </ul>
+        </section>
+      </div>
+    </section>
+
+    <section class="direction" id="direction-5">
+      <header>
+        <span class="badge" style="background: rgba(34,197,94,0.22); color: #0f5132;">Flow States</span>
+        <h2>Skyline Kanban</h2>
+        <p>
+          A stage-based take where devices flow across status columns (Active, Needs Attention, Ready to Retire). Each column surfaces counts, and cards bloom into modals for details. Reinforces motion and progress.
+        </p>
+      </header>
+
+      <div class="screen direction-5">
+        <div class="screen-shell">
+          <div class="screen-header" style="background:linear-gradient(90deg, rgba(34,197,94,0.18), rgba(255,255,255,0));">
+            <div class="title">Skyline Kanban <span style="background:rgba(34,197,94,0.18); color:#0f5132;">Stage view</span></div>
+            <div class="actions">
+              <button>Print board</button>
+              <button class="primary">Toggle audit trail</button>
+            </div>
+          </div>
+          <div class="screen-body" style="grid-template-columns: 1fr;">
+            <main class="content">
+              <div class="status-banner">
+                <div><strong>Stage counts:</strong> Active (64) · Needs attention (6) · Ready to retire (4)</div>
+                <span>Drag & drop enabled</span>
+              </div>
+              <div class="kanban-columns">
+                <div class="kanban-column">
+                  <div class="column-header">
+                    <span>Active</span>
+                    <span>64</span>
+                  </div>
+                  <div class="kanban-card">
+                    <strong>NYU-00521</strong>
+                    <span>Jordan Patel · Demo day lead</span>
+                    <span class="chip">Sync healthy</span>
+                  </div>
+                  <div class="kanban-card">
+                    <strong>NYU-00420</strong>
+                    <span>Avery Holt · Orientation</span>
+                    <span class="chip">Loaner</span>
+                  </div>
+                </div>
+                <div class="kanban-column warning">
+                  <div class="column-header">
+                    <span>Needs attention</span>
+                    <span>6</span>
+                  </div>
+                  <div class="kanban-card">
+                    <strong>NYU-00312</strong>
+                    <span>Fair condition · Awaiting review</span>
+                    <span class="chip">Governance flag</span>
+                  </div>
+                  <div class="kanban-card">
+                    <strong>NYU-00288</strong>
+                    <span>Loaner · Missing charger</span>
+                    <span class="chip">Checklist</span>
+                  </div>
+                </div>
+                <div class="kanban-column error">
+                  <div class="column-header">
+                    <span>Ready to retire</span>
+                    <span>4</span>
+                  </div>
+                  <div class="kanban-card">
+                    <strong>NYU-00173</strong>
+                    <span>Battery failure · expedite return</span>
+                  </div>
+                  <div class="kanban-card">
+                    <strong>NYU-00089</strong>
+                    <span>Obsolete model · anonymized</span>
+                  </div>
+                </div>
+                <div class="kanban-column" style="background:rgba(79,70,229,0.08); border-color:rgba(79,70,229,0.16);">
+                  <div class="column-header">
+                    <span>Completed</span>
+                    <span>28</span>
+                  </div>
+                  <div class="kanban-card">
+                    <strong>NYU-00560</strong>
+                    <span>Transfer approved · audit logged</span>
+                  </div>
+                  <div class="kanban-card">
+                    <strong>NYU-00478</strong>
+                    <span>Offboarding briefing sent</span>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <section>
+          <h3>Golden Moments</h3>
+          <ul>
+            <li>Columns animate counts when filters apply, echoing GitLab-styled chips.</li>
+            <li>Drag-to-stage gestures snap with haptic-friendly easing.</li>
+            <li>Audit ribbon pins the last staged change with timestamp.</li>
+          </ul>
+        </section>
+        <section>
+          <h3>Best For</h3>
+          <ul>
+            <li>Operational coaching</li>
+            <li>Backlog grooming</li>
+            <li>Stage-based reporting</li>
+          </ul>
+        </section>
+      </div>
+    </section>
+
+    <section class="direction" id="direction-6">
+      <header>
+        <span class="badge" style="background: rgba(59,130,246,0.18); color: #1d4ed8;">Signal Matrix</span>
+        <h2>Signal-Driven Matrix</h2>
+        <p>
+          A heatmap-inspired matrix that overlays status signals on top of the grid. Columns highlight when trends emerge, and quick filters let managers isolate governance anomalies in seconds.
+        </p>
+      </header>
+
+      <div class="screen direction-6">
+        <div class="screen-shell">
+          <div class="screen-header" style="background:linear-gradient(90deg, rgba(59,130,246,0.22), rgba(255,255,255,0));">
+            <div class="title">Signal Matrix <span style="background:rgba(59,130,246,0.18); color:#1d4ed8;">Anomaly view</span></div>
+            <div class="actions">
+              <button>Save preset</button>
+              <button class="primary">Trigger alert</button>
+            </div>
+          </div>
+          <div class="screen-body" style="grid-template-columns: 1fr 240px;">
+            <main class="content">
+              <div class="status-banner">
+                <div><strong>Live signals</strong> · Highlighting columns where anomalies exceed threshold.</div>
+                <span>Matrix mode</span>
+              </div>
+              <div class="matrix-grid">
+                <div class="matrix-cell alert">
+                  <strong>Loaner anomalies</strong>
+                  <span>+4 week over week</span>
+                  <small>Focus: Loaner pool</small>
+                </div>
+                <div class="matrix-cell">
+                  <strong>Sync reliability</strong>
+                  <span>98% success</span>
+                  <small>12 hr window</small>
+                </div>
+                <div class="matrix-cell">
+                  <strong>Offboarding readiness</strong>
+                  <span>6 devices</span>
+                  <small>Action required</small>
+                </div>
+                <div class="matrix-cell">
+                  <strong>Transfer approvals</strong>
+                  <span>4 pending</span>
+                </div>
+                <div class="matrix-cell alert" style="background:rgba(248,113,113,0.24); border-color:rgba(248,113,113,0.32);">
+                  <strong>Repair backlog</strong>
+                  <span>6 devices</span>
+                  <small>Trigger governance review</small>
+                </div>
+                <div class="matrix-cell">
+                  <strong>Audit coverage</strong>
+                  <span>100% events logged</span>
+                </div>
+              </div>
+            </main>
+            <aside class="audit" style="background:rgba(59,130,246,0.06);">
+              <div class="event">
+                <strong>Preset filters</strong>
+                <span>FERPA watch · Loaner risk · Governance anomalies</span>
+              </div>
+              <div class="event">
+                <strong>Upcoming alerts</strong>
+                <span>Repair backlog > 5 · Sync failure streak</span>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <section>
+          <h3>Golden Moments</h3>
+          <ul>
+            <li>Status columns glow subtly as counts increase, telegraphing anomalies.</li>
+            <li>Filter presets highlight governance-critical views (FERPA, Deactivation, Loaner).</li>
+            <li>Mobile view converts matrix into stacked signal cards with badges.</li>
+          </ul>
+        </section>
+        <section>
+          <h3>Best For</h3>
+          <ul>
+            <li>Trend spotting</li>
+            <li>Governance audits</li>
+            <li>Performance dashboards</li>
+          </ul>
+        </section>
+      </div>
+    </section>
+  </div>
+
+  <div class="nav-controls">
+    <button type="button" id="prevBtn" aria-label="Previous design direction">← Previous</button>
+    <button type="button" id="nextBtn" aria-label="Next design direction">Next →</button>
+  </div>
+
+  <script>
+    const layout = document.getElementById("layout");
+    const thumbnails = Array.from(document.querySelectorAll(".thumb"));
+    const directions = Array.from(document.querySelectorAll(".direction"));
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const viewportButtons = Array.from(document.querySelectorAll(".viewport-btn"));
+
+    let currentIndex = 0;
+
+    function setActive(index) {
+      currentIndex = (index + directions.length) % directions.length;
+      layout.classList.remove('direction-1', 'direction-2', 'direction-3', 'direction-4', 'direction-5', 'direction-6');
+      layout.classList.add(`direction-${currentIndex + 1}`);
+      thumbnails.forEach((thumb, i) => {
+        thumb.classList.toggle("active", i === currentIndex);
+        thumb.setAttribute("aria-current", i === currentIndex ? "true" : "false");
+      });
+      directions.forEach((dir, i) => {
+        dir.classList.toggle("active", i === currentIndex);
+      });
+    }
+
+    thumbnails.forEach((thumb, index) => {
+      thumb.addEventListener("click", () => setActive(index));
+      thumb.addEventListener("keypress", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          setActive(index);
+        }
+      });
+    });
+
+    prevBtn.addEventListener("click", () => setActive(currentIndex - 1));
+    nextBtn.addEventListener("click", () => setActive(currentIndex + 1));
+
+    viewportButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        viewportButtons.forEach((b) => {
+          b.classList.toggle("active", b === btn);
+          b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+        });
+        layout.classList.remove("viewport-desktop", "viewport-tablet", "viewport-mobile");
+        layout.classList.add(`viewport-${btn.dataset.viewport}`);
+      });
+    });
+  </script>
+</body>
+</html>

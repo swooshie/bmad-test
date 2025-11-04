@@ -208,6 +208,60 @@ The demo’s magic moment is the instant confidence managers feel when they see 
    **Prerequisites:** Stories C1–C2  
    **Parallel Ready:** No
 
+6. **Story [C6]: Governance reminder banner & anonymization presets** *(FR-009, FR-011)*  
+   As a manager, I want a governance banner that advertises anonymization state and offers demo-safe presets so I can mask sensitive assignments confidently.  
+   **Acceptance Criteria**  
+   1. Banner surfaces anonymization state, last toggle timestamp, and CTA to open preset panel (Demo-safe, Full visibility).  
+   2. Preset panel exposes per-column overrides using deterministic placeholders and persists state via API hook.  
+   3. `aria-pressed`/`aria-describedby` states mirror UI state for accessibility; audit event fired on every change.  
+   **Prerequisites:** Stories C1, C4  
+   **Parallel Ready:** Yes
+
+7. **Story [C7]: Device detail drawer with audit timeline ribbon** *(FR-008, FR-010)*  
+   As a manager, I want to open a device drawer that overlays audit history, governance badges, and handoff actions so I can deep-dive without leaving the grid.  
+   **Acceptance Criteria**  
+   1. Drawer consumes grid selection, showing metadata, anonymized chips, and actionable buttons (Export audit snapshot, Initiate handoff).  
+   2. Audit timeline ribbon lists latest events (sync, anonymization, handoff) with status badges and tooltips.  
+   3. Keyboard/focus flows return to originating row on close; drawer responsive behavior matches spec (full-width on tablet/mobile).  
+   **Prerequisites:** Stories C2, D1  
+   **Parallel Ready:** No
+
+8. **Story [C8]: GitLab-style column filter chips & halo highlight** *(FR-007)*  
+   As a manager, I want column filters to surface as chips with counts and the grid to halo matching rows so I can scope the roster quickly.  
+   **Acceptance Criteria**  
+   1. Column dropdowns emit chips with counts; chips support removal/reorder and reflect active filters in query string.  
+   2. Rows matching active filters receive violet halo animation; typeahead search ties into same highlighting.  
+   3. Chips remain accessible (focusable, `aria-pressed`) and shrink grid virtualization scope accordingly.  
+   **Prerequisites:** Story C2  
+   **Parallel Ready:** Yes
+
+9. **Story [C9]: Icon-first action controls & animation system** *(FR-008; Accessibility & Motion NFRs)*  
+   As an interaction designer, I want icon-first buttons to reveal labels on hover/focus/tap so the UI stays minimal yet understandable.  
+   **Acceptance Criteria**  
+   1. Implement shared animation utility: 120 ms slide/opacity for hover, 90 ms press-in, 150 ms release across buttons, dropdowns, chips.  
+   2. Desktop hover, keyboard focus, and mobile tap all surface labels; animations respect reduced-motion preference.  
+   3. Document usage in component library and expose tokens for future components.  
+   **Prerequisites:** Stories C1–C2  
+   **Parallel Ready:** Yes
+
+10. **Story [C10]: Responsive adaptation & bottom dock navigation** *(FR-007; Accessibility NFR)*  
+    As a manager using tablet or mobile, I want the layout to adapt with slide-over audit spine and bottom dock shortcuts so interactions stay effortless.  
+    **Acceptance Criteria**  
+    1. Tablet breakpoint collapses audit spine into slide-over with icon trigger; mobile pivots to search-first cards.  
+    2. Bottom dock exposes Search, Filters, Audit, Export with 48px tap targets and icon-first label behavior.  
+    3. Verify reduced motion, focus order, and ARIA announcements across breakpoints per accessibility spec.  
+    **Prerequisites:** Stories C1–C2, C9  
+    **Parallel Ready:** No
+
+11. **Story [C11]: Error, empty, and edge-state blueprint** *(FR-012; UX Consistency NFR)*  
+    As a developer, I want reusable patterns for empty states, no-results, and sync errors so the dashboard never leaves managers confused.  
+    **Acceptance Criteria**  
+    1. Implement empty state with illustration + CTA for first-use and no-results scenarios.  
+    2. Inline error banners and toast patterns wired to sync/anonymization failure codes with retry CTA.  
+    3. Accessibility: `role=\"alert\"` and focus management to error source; undo chip provided for destructive actions where applicable.  
+    **Prerequisites:** Stories C1–C3  
+    **Parallel Ready:** Yes
+
 ---
 
 ## Epic D – Governance & Observability Guardrails (FR-010 + NFRs)
@@ -256,12 +310,21 @@ Without evidence of accountability and monitoring, the demo cannot prove readine
    **Prerequisites:** Stories B2, B5  
    **Parallel Ready:** Yes
 
+5. **Story [D5]: Accessibility compliance & testing harness** *(Accessibility NFR)*  
+   As a quality lead, I want automated and manual accessibility checks so we can prove the dashboard meets WCAG AA before demos.  
+   **Acceptance Criteria**  
+   1. Integrate axe-core and Lighthouse accessibility audits into CI with thresholds documented.  
+   2. Provide manual checklist covering keyboard navigation, screen reader labels, and high-contrast verification per spec.  
+   3. Record accessibility audit results in audit log with timestamp, tester, and pass/fail summary.  
+   **Prerequisites:** Stories C1–C11  
+   **Parallel Ready:** No
+
 ---
 
 ## Story Validation
 
-- **Total stories:** 19  
-- **Parallel-ready stories:** 7 (A1, A4, C3, C4, D2, D4, plus post-foundation pipeline tasks once prerequisites met)  
+- **Total stories:** 26  
+- **Parallel-ready stories:** 11 (A1, A4, B1, C3, C4, C6, C8, C9, C11, D2, D4)  
 - **Sequential dependency chains:** 4 primary chains (Epic A auth setup, Epic B pipeline, Epic C UI foundation, Epic D guardrails)  
 - **FR coverage:** FR-001 through FR-012 mapped to at least one story; cross-referenced in story headers  
 - **NFR coverage:** Security, Performance, Accessibility, Scalability, and Integration addressed within relevant stories  
@@ -270,14 +333,42 @@ Without evidence of accountability and monitoring, the demo cannot prove readine
 
 ---
 
+## 14. Cross-Workflow Alignment (Epics Update Log)
+
+UX validation on 2025-11-04 surfaced new design components, motion patterns, and accessibility commitments. The epics file now reflects these changes:
+
+### Stories Added / Adjusted
+- Governance banner + anonymization presets (**Story C6**)
+- Device drawer with audit timeline ribbon (**Story C7**)
+- GitLab-style filter chips & halo highlight (**Story C8**)
+- Icon-first animation system (**Story C9**)
+- Responsive adaptation & bottom dock (**Story C10**)
+- Error/empty state blueprint (**Story C11**)
+- Accessibility compliance harness (**Story D5**)
+
+### Checklist Outcomes
+- ✅ Reviewed epics for UX alignment; appended Stories C6–C11 and D5 with acceptance criteria.
+- ✅ Captured custom component builds, UX pattern implementations, animation work, responsive adaptation, accessibility tasks, and error handling via stories above.
+- ✅ Documented new responsibilities in Epic C (experience) and Epic D (governance/accessibility).
+- ✅ Updated implementation sequence to sequence new stories appropriately.
+- ➖ No additional epic required; existing epics cover the expanded scope.
+- ➖ No stories combined or split beyond new additions—original complexity remains unchanged.
+
+### Notes
+- New stories absorb extra complexity instead of inflating baseline stories (C2/C4).  
+- Accessibility commitments (focus indicators, screen-reader labels, audits) are tracked through D5 and reflected in component specs.  
+- Responsive and motion requirements from `docs/ux-design-specification.md` now have corresponding backlog coverage, satisfying workflow validation feedback.
+
+---
+
 ## Implementation Guidance
 
 ### Getting Started
 
-- **Phase 1 – Secure Access & Configuration:** Deliver Stories A1–A4 sequentially to unlock authenticated plumbing. Run smoke tests on OAuth before continuing.  
+- **Phase 1 – Secure Access & Configuration:** Deliver Stories A1–A5 sequentially to unlock authenticated plumbing. Run smoke tests on OAuth before continuing.  
 - **Phase 2 – Sync Automation:** Complete Stories B1–B5. Focus on manual sync (B3) before adding cron (B4) to unblock UI integration.  
-- **Phase 3 – Manager Dashboard:** Execute Stories C1–C5, starting with authenticated shell then grid features. Keep Lighthouse script handy to verify performance claims.  
-- **Phase 4 – Governance Guardrails:** Build audit panel (D1) and telemetry (D2), then finish with smoke tests (D3) and rollback tooling (D4).
+- **Phase 3 – Manager Experience:** Execute Stories C1–C11 — grid foundations first (C1–C4, C8), then animation system (C9), governance banner (C6), responsive adaptations (C10), and error/empty states (C11). Keep Lighthouse + performance instrumentation (C5) running throughout.  
+- **Phase 4 – Governance, Accessibility & Operations:** Deliver D1–D5 — audit API, drawer integration (C7), telemetry/rollback (D2, D4), accessibility audits (D5), and final smoke testing (D3).
 
 ### Domain Guidance
 
@@ -290,6 +381,8 @@ Without evidence of accountability and monitoring, the demo cannot prove readine
 - Sheets API quotas: Batch requests where possible and implement exponential backoff (B1/B3).  
 - Mongo index considerations: monitor `lastSyncedAt` index size; prune test data after validating pipeline.  
 - Frontend performance: Virtualized grid and status banner updates must avoid unnecessary re-render loops.  
+- Motion/animation tokens: Reuse Story C9 utilities and honor reduced-motion preferences across buttons, chips, and drawers.  
+- Accessibility tooling: Run D5 checks (axe-core, Lighthouse) on CI and capture log outputs for audit trail.  
 - Secret management: Document rotation steps for service account keys to avoid last-minute failures.
 
 ### Risk Mitigation
@@ -297,13 +390,14 @@ Without evidence of accountability and monitoring, the demo cannot prove readine
 - OAuth misconfiguration (Stories A2–A3): keep fallback service account credentials and test in staging before demo.  
 - Sheets rate limits (Story B5): throttle manual refresh to prevent hitting API caps; communicate error codes clearly.  
 - UI performance regressions (Story C5): run instrumentation script after every major UI change.  
+- Motion/accessibility regressions (Stories C9, D5): ensure reduced-motion preference and WCAG AA audits run before sign-off.  
 - Audit data loss (Story D1): enable backups for `audit_logs` collection or export after each session.
 
 ### Success Metrics Checkpoints
 
 - After Epic B: Manual and scheduled sync complete within 60 seconds of sheet change.  
-- After Epic C: Dashboard loads under 2 seconds; anonymization toggle responds under 200 ms.  
-- After Epic D: Audit panel shows complete event history; smoke test script greenlights demo readiness.
+- After Epic C: Dashboard loads under 2 seconds; anonymization toggle responds under 200 ms; responsive layout verified on tablet/mobile.  
+- After Epic D: Audit panel shows complete event history; accessibility audits (axe-core, Lighthouse) pass with AA thresholds; smoke test suite greenlights demo readiness.
 
 ---
 
@@ -311,17 +405,17 @@ Without evidence of accountability and monitoring, the demo cannot prove readine
 
 1. **Secure Foundations:** A1 → A2 → A3 → A4 → A5  
 2. **Pipeline Core:** B1 → B2 → B3 → B4 → B5  
-3. **Experience Layer:** C1 → C2 → (C3, C4 in parallel) → C5  
-4. **Guardrails:** D1 → (D2, D4 in parallel) → D3
+3. **Experience Layer:** C1 → C2 → (C3, C4, C8 in parallel) → C9 → C6 → C10 → C11  
+4. **Guardrails & Accessibility:** D1 → C7 → (D2, D4 in parallel) → D5 → D3
 
 ---
 
 ## Development Phases
 
-- **Phase 1: Access & Config Hardening** – Ship Epic A to guarantee only admissions managers can reach the dashboard.  
-- **Phase 2: Sync & Data Integrity** – Complete Epic B to honor 60-second freshness and resilient error handling.  
-- **Phase 3: Manager Experience** – Build Epic C to deliver the polished dashboard and anonymization wow factor.  
-- **Phase 4: Governance & Operations** – Finish Epic D to provide audit evidence, telemetry, and recovery playbooks.
+- **Phase 1: Access & Config Hardening** – Ship Epic A (Stories A1–A5) to guarantee only admissions managers can reach the dashboard.  
+- **Phase 2: Sync & Data Integrity** – Complete Epic B (B1–B5) to honor 60-second freshness and resilient error handling.  
+- **Phase 3: Manager Experience** – Execute Epic C (C1–C11) covering grid, governance banner, drawer, responsive behavior, animations, and error states.  
+- **Phase 4: Governance, Accessibility & Operations** – Deliver Epic D (D1–D5) to provide audit evidence, telemetry, accessibility audits, smoke tests, and recovery playbooks.
 
 ---
 

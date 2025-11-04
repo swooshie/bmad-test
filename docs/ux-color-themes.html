@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NYU Admissions Dashboard Color Themes</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f6f6f9;
+      color: #1f1f2b;
+    }
+    body {
+      margin: 0;
+      padding: 32px;
+    }
+    h1, h2, h3 {
+      font-weight: 600;
+    }
+    .theme-grid {
+      display: grid;
+      gap: 32px;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      border: 1px solid rgba(31, 31, 43, 0.08);
+      padding: 24px;
+      box-shadow: 0 12px 24px -16px rgba(17, 16, 35, 0.32);
+    }
+    .swatches {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 16px 0 24px;
+    }
+    .swatch {
+      width: 96px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(17, 16, 35, 0.08);
+    }
+    .swatch span {
+      display: block;
+      text-align: center;
+      font-size: 12px;
+      padding: 8px;
+    }
+    .swatch .color {
+      height: 64px;
+    }
+    .component-demo {
+      display: grid;
+      gap: 12px;
+    }
+    .button-primary {
+      background: #57068c;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 999px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .button-secondary {
+      background: rgba(87, 6, 140, 0.12);
+      color: #57068c;
+      padding: 12px 20px;
+      border-radius: 999px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .status-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .status {
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status.success { background: rgba(0, 160, 120, 0.12); color: #00795f; }
+    .status.warning { background: rgba(216, 142, 0, 0.16); color: #8a4c00; }
+    .status.error { background: rgba(194, 46, 72, 0.12); color: #a31234; }
+    .status.info { background: rgba(70, 95, 255, 0.12); color: #2f3fff; }
+    .panel {
+      border-radius: 16px;
+      padding: 18px;
+      background: linear-gradient(150deg, rgba(87, 6, 140, 0.08), rgba(145, 87, 220, 0.06));
+      border: 1px solid rgba(87, 6, 140, 0.2);
+    }
+    footer {
+      margin-top: 48px;
+      font-size: 12px;
+      color: rgba(31, 31, 43, 0.64);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>NYU Admissions Dashboard Color Themes</h1>
+  <p>Foundation inspired by NYU's purple &amp; white identity, tuned for governance clarity and responsive dashboards.</p>
+  <div class="theme-grid">
+    <section class="card">
+      <h2>Empire Violet</h2>
+      <p>Bright Empire neutrals on the grid, infused with Midnight Audit highlights for luminous governance cues.</p>
+      <div class="swatches">
+        <div class="swatch">
+          <div class="color" style="background:#57068c"></div>
+          <span>Primary<br/>#57068C</span>
+        </div>
+        <div class="swatch">
+          <div class="color" style="background:#8B5CF6"></div>
+          <span>Accent<br/>#8B5CF6</span>
+        </div>
+        <div class="swatch">
+          <div class="color" style="background:#F8F7FF"></div>
+          <span>Canvas<br/>#F8F7FF</span>
+        </div>
+        <div class="swatch">
+          <div class="color" style="background:#111022"></div>
+          <span>Ink<br/>#111022</span>
+        </div>
+      </div>
+      <div class="component-demo">
+        <div class="button-primary">Primary Action</div>
+        <div class="button-secondary">Secondary Action</div>
+        <div class="status-row">
+          <span class="status success">Sync Healthy</span>
+          <span class="status warning">Needs Attention</span>
+          <span class="status error">Sync Failed</span>
+          <span class="status info">Heartbeat Active</span>
+        </div>
+        <div class="panel">
+          Live roster sync completed 38 seconds ago.<br/>All anonymization rules enforced.
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <h2>Midnight Audit</h2>
+      <p>Deep plum shadows with bright signal accents. Ideal for dark-mode dashboards or spotlighting audit trails.</p>
+      <div class="swatches">
+        <div class="swatch">
+          <div class="color" style="background:#2E124E"></div>
+          <span>Primary<br/>#2E124E</span>
+        </div>
+        <div class="swatch">
+          <div class="color" style="background:#A855F7"></div>
+          <span>Accent<br/>#A855F7</span>
+        </div>
+        <div class="swatch">
+          <div class="color" style="background:#151322"></div>
+          <span>Canvas<br/>#151322</span>
+        </div>
+        <div class="swatch">
+          <div class="color" style="background:#F2EDFF"></div>
+          <span>Ink<br/>#F2EDFF</span>
+        </div>
+      </div>
+      <div class="component-demo">
+        <div class="button-primary" style="background:#A855F7;color:#151322;">Primary Action</div>
+        <div class="button-secondary" style="background:rgba(168,85,247,0.18);color:#F2EDFF;">Secondary Action</div>
+        <div class="status-row">
+          <span class="status success" style="background:rgba(34,197,94,0.18);color:#4ADE80;">Sync Healthy</span>
+          <span class="status warning" style="background:rgba(234,179,8,0.18);color:#FACC15;">Needs Attention</span>
+          <span class="status error" style="background:rgba(248,113,113,0.2);color:#F87171;">Sync Failed</span>
+          <span class="status info" style="background:rgba(129,140,248,0.2);color:#818CF8;">Heartbeat Active</span>
+        </div>
+        <div class="panel" style="background:linear-gradient(160deg,rgba(168,85,247,0.22),rgba(88,28,135,0.36));border:1px solid rgba(168,85,247,0.4);color:#F2EDFF;">
+          Audit trail pinned. Last anonymization adjustment approved by governance at 09:24.
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <h2>Civic Lilac</h2>
+      <p>Lighter lilac gradients for airy, demo-friendly screens with strong contrast ratios for compliance callouts.</p>
+      <div class="swatches">
+        <div class="swatch">
+          <div class="color" style="background:#6D28D9"></div>
+          <span>Primary<br/>#6D28D9</span>
+        </div>
+        <div class="swatch">
+          <div class="color" style="background:#C4B5FD"></div>
+          <span>Accent<br/>#C4B5FD</span>
+        </div>
+        <div class="swatch">
+          <div class="color" style="background:#FFFFFF"></div>
+          <span>Canvas<br/>#FFFFFF</span>
+        </div>
+        <div class="swatch">
+          <div class="color" style="background:#1E1B4B"></div>
+          <span>Ink<br/>#1E1B4B</span>
+        </div>
+      </div>
+      <div class="component-demo">
+        <div class="button-primary" style="background:#6D28D9;">Primary Action</div>
+        <div class="button-secondary" style="background:rgba(109,40,217,0.12);color:#6D28D9;">Secondary Action</div>
+        <div class="status-row">
+          <span class="status success">Sync Healthy</span>
+          <span class="status warning">Needs Attention</span>
+          <span class="status error">Sync Failed</span>
+          <span class="status info">Heartbeat Active</span>
+        </div>
+        <div class="panel">
+          Devices anonymized for demo mode. Tap to reveal governance-safe columns.
+        </div>
+      </div>
+    </section>
+  </div>
+  <footer>Generated for BMAD Demo NodeJS Project · 2025-11-04</footer>
+</body>
+</html>

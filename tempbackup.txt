@@ -1,0 +1,145 @@
+# BMAD Demo NodeJS Project UX Design Specification
+
+_Created on 2025-11-04 by Aditya_
+_Generated using BMad Method - Create UX Design Workflow v1.0_
+
+---
+
+## Executive Summary
+
+The BMAD Demo NodeJS Project reimagines the admissions device roster as a responsive internal web app. It ingests the Google Sheet into MongoDB, wraps it in a premium, low-latency interface, and gives managers instant confidence in hardware assignments during demos by keeping the data live and governance-ready.
+
+---
+
+## 1. Design System Foundation
+
+### 1.1 Design System Choice
+
+{{design_system_decision}}
+
+---
+
+## 2. Core User Experience
+
+### 2.1 Defining Experience
+
+Managers compare device assignments, anonymize sensitive fields, and trigger sheet-to-UI refreshes without ever leaving a responsive web grid that feels as fluid as their favorite spreadsheet.
+
+### 2.2 Novel UX Patterns
+
+Live sync transparency banner, governance-friendly anonymization toggle, and audit-trail heartbeat indicator that pulses when a sync completes.
+
+---
+
+## 3. Visual Foundation
+
+### 3.1 Color System
+
+We will define a responsive web color system that holds up from widescreen demos to quick tablet check-ins, calibrating contrast for governance clarity while preserving a premium feel.
+
+**Interactive Visualizations:**
+
+- Color Theme Explorer: [ux-color-themes.html](./ux-color-themes.html)
+
+---
+
+## 4. Design Direction
+
+### 4.1 Chosen Design Approach
+
+Pending detailed direction; will emerge after we select core layout and pattern references in later steps.
+
+**Interactive Mockups:**
+
+- Design Direction Showcase: [ux-design-directions.html](./ux-design-directions.html)
+
+---
+
+## 5. User Journey Flows
+
+### 5.1 Critical User Paths
+
+{{user_journey_flows}}
+
+---
+
+## 6. Component Library
+
+### 6.1 Component Strategy
+
+{{component_library_strategy}}
+
+---
+
+## 7. UX Pattern Decisions
+
+### 7.1 Consistency Rules
+
+{{ux_pattern_decisions}}
+
+---
+
+## 8. Responsive Design & Accessibility
+
+### 8.1 Responsive Strategy
+
+{{responsive_accessibility_strategy}}
+
+---
+
+## 9. Implementation Guidance
+
+### 9.1 Completion Summary
+
+{{completion_summary}}
+
+---
+
+## Appendix
+
+### Related Documents
+
+- Product Requirements: `docs/PRD.md`
+- Product Brief: `docs/product-brief.md`
+- Brainstorming: `docs/brainstorming.md`
+
+### Core Interactive Deliverables
+
+This UX Design Specification was created through visual collaboration:
+
+- **Color Theme Visualizer**: docs/ux-color-themes.html
+  - Interactive HTML showing all color theme options explored
+  - Live UI component examples in each theme
+  - Side-by-side comparison and semantic color usage
+
+- **Design Direction Mockups**: docs/ux-design-directions.html
+  - Interactive HTML with 6-8 complete design approaches
+  - Full-screen mockups of key screens
+  - Design philosophy and rationale for each direction
+
+### Optional Enhancement Deliverables
+
+_This section will be populated if additional UX artifacts are generated through follow-up workflows._
+
+<!-- Additional deliverables added here by other workflows -->
+
+### Next Steps & Follow-Up Workflows
+
+This UX Design Specification can serve as input to:
+
+- **Wireframe Generation Workflow** - Create detailed wireframes from user flows
+- **Figma Design Workflow** - Generate Figma files via MCP integration
+- **Interactive Prototype Workflow** - Build clickable HTML prototypes
+- **Component Showcase Workflow** - Create interactive component library
+- **AI Frontend Prompt Workflow** - Generate prompts for v0, Lovable, Bolt, etc.
+- **Solution Architecture Workflow** - Define technical architecture with UX context
+
+### Version History
+
+| Date     | Version | Changes                         | Author        |
+| -------- | ------- | ------------------------------- | ------------- |
+| 2025-11-04 | 1.0     | Initial UX Design Specification | Aditya |
+
+---
+
+_This UX Design Specification was created through collaborative design facilitation, not template generation. All decisions were made with user input and are documented with rationale._
