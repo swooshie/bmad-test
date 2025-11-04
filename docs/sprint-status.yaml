@@ -1,0 +1,72 @@
+# generated: 2025-11-04T19:59:24Z
+# project: BMAD Demo NodeJS Project
+# project_key: BMAD Demo NodeJS Project
+# tracking_system: file-system
+# story_location: "{project-root}/docs/stories"
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic exists in epic file but not contexted
+#   - contexted: Epic tech context created (required before drafting stories)
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - drafted: Story file created in stories folder
+#   - ready-for-dev: Draft approved and story context created
+#   - in-progress: Developer actively working on implementation
+#   - review: Under SM review (via code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - completed: Retrospective has been done
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epics should be 'contexted' before stories can be 'drafted'
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically drafts next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', SM reviews, then Dev moves to 'done'
+
+generated: 2025-11-04T19:59:24Z
+project: BMAD Demo NodeJS Project
+project_key: BMAD Demo NodeJS Project
+tracking_system: file-system
+story_location: "{project-root}/docs/stories"
+
+development_status:
+  epic-1: backlog
+  1-1-persist-admissions-manager-allowlist: drafted
+  1-2-implement-google-oauth-restricted-to-admissions-managers: drafted
+  1-3-session-middleware-and-audit-logging-for-auth-failures: backlog
+  1-4-secure-secrets-and-configuration-loading: backlog
+  1-5-allowlist-maintenance-endpoint-with-role-gating: backlog
+  epic-1-retrospective: optional
+  epic-2: backlog
+  2-1-build-google-sheets-fetch-module: backlog
+  2-2-normalize-and-upsert-devices-into-mongodb: backlog
+  2-3-implement-manual-sync-endpoint-with-optimistic-status: backlog
+  2-4-schedule-automated-ingest-via-app-engine-cron: backlog
+  2-5-resilient-error-handling-and-rollback-safeguards: backlog
+  epic-2-retrospective: optional
+  epic-3: backlog
+  3-1-authenticated-shell-with-sync-status-banner: backlog
+  3-2-spreadsheet-grid-with-performant-sort-filter: backlog
+  3-3-governance-cues-for-offboarding-workflows: backlog
+  3-4-anonymization-toggle-ux-with-deterministic-placeholders: backlog
+  3-5-performance-instrumentation-and-lighthouse-checks: backlog
+  3-6-governance-reminder-banner-anonymization-presets: backlog
+  3-7-device-detail-drawer-with-audit-timeline-ribbon: backlog
+  3-8-gitlab-style-column-filter-chips-halo-highlight: backlog
+  3-9-icon-first-action-controls-animation-system: backlog
+  3-10-responsive-adaptation-bottom-dock-navigation: backlog
+  3-11-error-empty-and-edge-state-blueprint: backlog
+  epic-3-retrospective: optional
+  epic-4: backlog
+  4-1-audit-api-and-dashboard-panel: backlog
+  4-2-telemetry-and-sync-health-summaries: backlog
+  4-3-demo-readiness-smoke-test-suite: backlog
+  4-4-rollback-and-data-snapshot-utilities: backlog
+  4-5-accessibility-compliance-testing-harness: backlog
+  epic-4-retrospective: optional
