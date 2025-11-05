@@ -37,9 +37,9 @@ story_location: "{project-root}/docs/stories"
 
 development_status:
   epic-1: backlog
-  1-1-persist-admissions-manager-allowlist: drafted
+  1-1-persist-admissions-manager-allowlist: review
   1-2-implement-google-oauth-restricted-to-admissions-managers: drafted
-  1-3-session-middleware-and-audit-logging-for-auth-failures: backlog
+  1-3-session-middleware-and-audit-logging-for-auth-failures: review
   1-4-secure-secrets-and-configuration-loading: backlog
   1-5-allowlist-maintenance-endpoint-with-role-gating: backlog
   epic-1-retrospective: optional

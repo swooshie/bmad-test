@@ -1,0 +1,142 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1</storyId>
+    <title>Persist admissions manager allowlist</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-05T15:54:30Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-1-persist-admissions-manager-allowlist.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As a demo operator</asA>
+    <iWant>I want to persist admissions manager email allowlists and demo configuration in MongoDB</iWant>
+    <soThat>so that we can update access between demos without redeploying the application</soThat>
+    <tasks><task id="T1" ac="AC1">
+  <summary>Design and implement the config collection so it captures allowlisted emails, target sheet ID, Mongo collection name, and metadata for lastUpdatedAt and updatedBy.</summary>
+  <subtask>Create aligned persistence models (e.g., models/Config.ts plus shared Zod schema) to keep API and database validation consistent.</subtask>
+</task>
+<task id="T2" ac="AC2">
+  <summary>Build an allowlist management surface (CLI seeding script or admin endpoint) that upserts entries idempotently with operator attribution.</summary>
+  <subtask>Emit audit change events containing timestamp, operator ID, and diff summary for every update.</subtask>
+</task>
+<task id="T3" ac="AC3">
+  <summary>Wire NextAuth sign-in callbacks to read the persisted allowlist and enforce admissions manager access control.</summary>
+  <subtask>Ensure rejected sign-ins log at warn level and that `/api/sync` reflects allowlist updates within one minute without redeploy.</subtask>
+</task></tasks>
+  </story>
+
+  <acceptanceCriteria><criterion id="AC1">
+  <statement>Config collection persists allowlisted manager emails, Devices sheet ID, and Mongo collection name, and changes propagate to the running app within one minute without redeploying.</statement>
+  <source>docs/stories/1-1-persist-admissions-manager-allowlist.md#acceptance-criteria</source>
+</criterion>
+<criterion id="AC2">
+  <statement>Allowlist management is exposed through a CLI seeding script or admin endpoint that upserts entries and records timestamp plus operator ID for every change.</statement>
+  <source>docs/stories/1-1-persist-admissions-manager-allowlist.md#acceptance-criteria</source>
+</criterion>
+<criterion id="AC3">
+  <statement>Authentication flow reads the persisted allowlist to permit only `@nyu.edu` admissions managers and logs rejected sign-ins for audit traceability.</statement>
+  <source>docs/stories/1-1-persist-admissions-manager-allowlist.md#acceptance-criteria</source>
+</criterion></acceptanceCriteria>
+
+  <artifacts>
+    <docs><doc>
+  <path>docs/epics.md</path>
+  <title>Epic A – Secure Access & Configuration</title>
+  <section>Story [A1]: Persist admissions manager allowlist</section>
+  <snippet>Defines Story A1 deliverables: config collection schema, allowlist management surface, and one-minute propagation window.</snippet>
+</doc>
+<doc>
+  <path>docs/PRD.md</path>
+  <title>Product Requirements Document</title>
+  <section>FR-002 Whitelist Management</section>
+  <snippet>Requires allowlist updates to take effect on the next login without redeploy and records operator changes in the audit log.</snippet>
+</doc>
+<doc>
+  <path>docs/architecture.md</path>
+  <title>Architecture Overview</title>
+  <section>Data Architecture – Config collection</section>
+  <snippet>Describes the MongoDB config collection capturing allowlisted emails, sheet identifiers, and metadata with Zod schema parity.</snippet>
+</doc>
+<doc>
+  <path>docs/architecture.md</path>
+  <title>Architecture Overview</title>
+  <section>Security Architecture – Authentication & Allowlist</section>
+  <snippet>Outlines NextAuth allowlist enforcement, Secret Manager integration, and warn-level logging for rejected sign-ins.</snippet>
+</doc></docs>
+    <code><code>
+  <path>nyu-device-roster/src/lib/auth/options.ts</path>
+  <kind>auth-config</kind>
+  <symbol>authOptions</symbol>
+  <lines>1-31</lines>
+  <reason>Base NextAuth configuration that Story 1.1 extends with allowlist-backed callbacks aligned with AC3.</reason>
+</code>
+<code>
+  <path>nyu-device-roster/src/lib/auth/sessionMiddleware.ts</path>
+  <kind>middleware</kind>
+  <symbol>withSession</symbol>
+  <lines>1-117</lines>
+  <reason>Session enforcement helper consuming allowlist-aware auth options and logging access decisions; changes must continue to log warn-level rejections.</reason>
+</code>
+<code>
+  <path>nyu-device-roster/src/lib/logging.ts</path>
+  <kind>logging-util</kind>
+  <symbol>logAuthFailure</symbol>
+  <lines>1-36</lines>
+  <reason>Centralized logging utilities that emit AUTH_INVALID_SESSION events at warn/error levels to satisfy AC3 audit traceability.</reason>
+</code></code>
+    <dependencies><dependency ecosystem="node">
+  <package>next@16.0.1</package>
+  <notes>Next.js App Router runtime hosting the API routes and CLI scripts that will consume the config collection.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>next-auth@4.24.13</package>
+  <notes>Authentication framework whose callbacks must query the persisted allowlist per AC3.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>pino@10.1.0</package>
+  <notes>Structured logging library used to emit warn-level audit entries for rejected sign-ins.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>react@19.2.0</package>
+  <notes>Front-end foundation; config updates must remain compatible with the existing React stack.</notes>
+</dependency></dependencies>
+  </artifacts>
+
+  <constraints><constraint>Place persistence logic in models/Config.ts with matching validators in schemas/config.ts to honor the architecture project structure (docs/architecture.md#project-structure).</constraint>
+<constraint>Ensure all allowlist rejection paths emit warn-level Pino logs per the observability guidance (docs/architecture.md#logging-strategy).</constraint>
+<constraint>Seed scripts executed in App Engine must source credentials from Secret Manager rather than local files (docs/stories/1-1-persist-admissions-manager-allowlist.md#dev-notes).</constraint>
+<constraint>Reuse shared helpers in lib/auth.ts and lib/db.ts instead of duplicating Mongo connections or auth clients (docs/architecture.md#project-structure-notes).</constraint></constraints>
+  <interfaces><interface>
+  <name>ConfigDocument</name>
+  <kind>Mongoose schema (planned)</kind>
+  <signature>{ allowlist: string[]; devicesSheetId: string; collectionName: string; lastUpdatedAt: Date; updatedBy: string; }</signature>
+  <path>models/Config.ts</path>
+  <reason>Defines persisted configuration required by AC1 and feeds both API and CLI consumers.</reason>
+</interface>
+<interface>
+  <name>ConfigConfigSchema</name>
+  <kind>Zod schema (planned)</kind>
+  <signature>z.object({ allowlist: z.array(z.string().email()), devicesSheetId: z.string(), collectionName: z.string(), lastUpdatedAt: z.date(), updatedBy: z.string() })</signature>
+  <path>schemas/config.ts</path>
+  <reason>Keeps API validation aligned with database schema to satisfy AC1 parity requirements.</reason>
+</interface>
+<interface>
+  <name>AllowlistChangeEvent</name>
+  <kind>Audit payload</kind>
+  <signature>{ operatorId: string; timestamp: string; emailsAdded: string[]; emailsRemoved: string[]; source: 'cli' | 'admin-endpoint' }</signature>
+  <path>scripts/seed-allowlist.ts</path>
+  <reason>Structure emitted by seeding script or endpoint to meet AC2 audit logging expectations.</reason>
+</interface></interfaces>
+  <tests>
+    <standards>Follow Vitest unit suites for models and helpers, plus integration coverage for NextAuth callbacks to confirm allowlist enforcement meets PRD FR-002.</standards>
+    <locations><location>nyu-device-roster/tests/unit</location>
+<location>nyu-device-roster/tests/integration</location>
+<location>nyu-device-roster/tests/fixtures</location></locations>
+    <ideas><idea ac="AC1">Instantiate Config model with sample payloads and ensure schema validation rejects missing metadata while Zod validator mirrors database rules.</idea>
+<idea ac="AC2">Run the seeding script in test mode to confirm idempotent upserts and audit payload persistence with operator attribution.</idea>
+<idea ac="AC3">Mock NextAuth signIn callback to verify only allowlisted `@nyu.edu` emails succeed and rejections log warn-level entries.</idea>
+<idea ac="AC1">Integration-test `/api/sync` to ensure it consumes updated allowlist entries without redeploy by refreshing config cache.</idea></ideas>
+  </tests>
+</story-context>

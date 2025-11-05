@@ -1,0 +1,154 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>3</storyId>
+    <title>Session middleware and audit logging for auth failures</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-05T15:22:54Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-3-session-middleware-and-audit-logging-for-auth-failures.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As an authenticated admissions manager</asA>
+    <iWant>I want protected routes to enforce session validation and capture audit signals</iWant>
+    <soThat>so that unauthorized actors never reach device data and governance teams can trace access attempts</soThat>
+    <tasks><task id="T1" ac="AC1">
+  <summary>Implement shared session verification middleware in lib/auth/sessionMiddleware.ts reusing Story 1.2 NextAuth configuration.</summary>
+  <subtask>Automated tests cover expired tokens returning 401/403 and allow valid sessions to reach downstream handlers.</subtask>
+</task>
+<task id="T2" ac="AC2">
+  <summary>Extend centralized logging to emit AUTH_INVALID_SESSION events with route, method, IP, and failure reason.</summary>
+  <subtask>Persist each rejection into sync_events or the governance stream with actor context whenever available.</subtask>
+</task>
+<task id="T3" ac="AC3">
+  <summary>Decorate Next.js API handlers with request.session.user payload and document the contract for downstream consumers.</summary>
+  <subtask>Update API route templates to assert manager identity presence and log any missing context.</subtask>
+</task>
+<task id="T4" ac="AC4">
+  <summary>Implement alert trigger that tracks more than five auth failures per IP in five minutes and surfaces Cloud Monitoring signals.</summary>
+</task></tasks>
+  </story>
+
+  <acceptanceCriteria><criterion id="AC1">
+  <statement>Middleware validates every /api/* request against the NextAuth session and blocks expired or invalid tokens.</statement>
+  <source>docs/epics.md#story-a3-session-middleware-and-audit-logging-for-auth-failures</source>
+</criterion>
+<criterion id="AC2">
+  <statement>Failed validations log structured events with reason code, route, method, IP, and requester identity for governance review.</statement>
+  <source>docs/epics.md#story-a3-session-middleware-and-audit-logging-for-auth-failures</source>
+</criterion>
+<criterion id="AC3">
+  <statement>Successful validations attach authenticated manager identity to the request context for downstream handlers.</statement>
+  <source>docs/epics.md#story-a3-session-middleware-and-audit-logging-for-auth-failures</source>
+</criterion>
+<criterion id="AC4">
+  <statement>Middleware raises alert hooks when repeated auth failures from the same IP exceed defined thresholds.</statement>
+  <source>docs/architecture.md#observability--audit-trail</source>
+</criterion></acceptanceCriteria>
+
+  <artifacts>
+    <docs><doc>
+  <path>docs/epics.md</path>
+  <title>Epic A – Secure Access &amp; Configuration</title>
+  <section>Story [A3]: Session middleware and audit logging for auth failures</section>
+  <snippet>Acceptance Criteria 1. Middleware validates JWT on all `/api/*` routes and denies expired/invalid tokens. Acceptance Criteria 2. Middleware logs failed validations with reason code and request metadata. Acceptance Criteria 3. Successful requests attach manager identity to request context for downstream logging.</snippet>
+</doc>
+<doc>
+  <path>docs/PRD.md</path>
+  <title>Product Requirements Document</title>
+  <section>FR-001 Access Control</section>
+  <snippet>FR-001 requires authenticating NYU admissions managers via Google OAuth and denying all other domains. The acceptance clause states non-whitelisted users receive a 403 response and the event is logged with email and timestamp.</snippet>
+</doc>
+<doc>
+  <path>docs/architecture.md</path>
+  <title>Architecture</title>
+  <section>Authentication &amp; Allowlist</section>
+  <snippet>Framework: NextAuth.js v5 handlers under `app/api/auth/[...nextauth]/route.ts`. Provider restricts Google OAuth to `@nyu.edu` and the allowlist callback rejects non-listed principals while logging the reason into `sync_events`. Sessions use HTTP-only cookies with sliding refresh and attach manager identity to API handlers.</snippet>
+</doc>
+<doc>
+  <path>docs/architecture.md</path>
+  <title>Architecture</title>
+  <section>Observability &amp; Audit Trail</section>
+  <snippet>Logging uses Pino v10 structured JSON captured by App Engine, and log-based metrics track unauthorized access attempts. Dashboards in Cloud Monitoring visualize sync latency and audit failures, and alerts notify the team from those metrics. Each API request attaches `requestId` and manager identity for traceability in `sync_events`.</snippet>
+</doc>
+<doc>
+  <path>docs/stories/1-2-implement-google-oauth-restricted-to-admissions-managers.md</path>
+  <title>Story 1.2</title>
+  <section>Acceptance Criteria</section>
+  <snippet>Acceptance Criteria 1 enforces allowlist checks before issuing session tokens. Acceptance Criteria 2 requires secure HTTP-only cookies with sliding refresh and identity propagation. Acceptance Criteria 3 mandates 403 responses with logged email, IP, and timestamp for unauthorized attempts.</snippet>
+</doc>
+<doc>
+  <path>docs/stories/1-1-persist-admissions-manager-allowlist.md</path>
+  <title>Story 1.1</title>
+  <section>Acceptance Criteria &amp; Dev Notes</section>
+  <snippet>The config collection persists allowlisted emails and records operator metadata on changes. Tasks route allowlist enforcement through the sign-in callback and ensure warn-level logging for rejections. Project structure notes place shared helpers in lib/auth.ts, lib/db.ts, and scripts/seed-allowlist.ts.</snippet>
+</doc></docs>
+    <code><code>
+  <path>lib/auth/sessionMiddleware.ts</path>
+  <kind>middleware</kind>
+  <symbol>sessionMiddleware</symbol>
+  <lines>planned</lines>
+  <reason>Shared NextAuth session guard that enforces AC1 before any API handler executes, per architecture.md#Project Structure.</reason>
+</code>
+<code>
+  <path>app/api/auth/[...nextauth]/route.ts</path>
+  <kind>nextjs-route</kind>
+  <symbol>authRouteHandler</symbol>
+  <lines>planned</lines>
+  <reason>Story 1.2 locates the Google provider and allowlist checks in this route, which session middleware must align with for AC1-AC3.</reason>
+</code>
+<code>
+  <path>lib/logging.ts</path>
+  <kind>logging-util</kind>
+  <symbol>auditLogger</symbol>
+  <lines>planned</lines>
+  <reason>Centralized logging utility emitting AUTH_INVALID_SESSION events with request metadata and requestId per architecture.md#Observability &amp; Audit Trail.</reason>
+</code></code>
+    <dependencies><dependency ecosystem="node">
+  <package>(pending package.json)</package>
+  <notes>No dependency manifest committed yet; initialize scaffold per architecture before implementation.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>next@16.x</package>
+  <notes>Architectural blueprint specifies Next.js App Router deployment.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>next-auth@5.x</package>
+  <notes>NextAuth manages Google OAuth allowlist and session cookies for AC1-AC3.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>pino@10.x</package>
+  <notes>Pino structured logging feeds governance dashboards and alert thresholds in AC2-AC4.</notes>
+</dependency></dependencies>
+  </artifacts>
+
+  <constraints><constraint>Reuse the NextAuth configuration established in Story 1.2 so session enforcement stays centralized in app/api/auth/[...nextauth]/route.ts (docs/stories/1-2-implement-google-oauth-restricted-to-admissions-managers.md).</constraint>
+<constraint>Persist AUTH_INVALID_SESSION rejections through the Pino logger described in docs/architecture.md#observability--audit-trail to keep governance dashboards accurate.</constraint>
+<constraint>Honor the architecture project structure by placing middleware logic in lib/auth.ts-derived helpers and avoiding duplicate auth entry points (docs/architecture.md#project-structure).</constraint>
+<constraint>Cloud Monitoring alert thresholds must consume log-based metrics emitted for repeated failures, aligning with docs/architecture.md#observability--audit-trail and PRD FR-012 error-handling expectations.</constraint></constraints>
+  <interfaces><interface>
+  <name>NextRequestWithSession</name>
+  <kind>TypeScript interface</kind>
+  <signature>type NextRequestWithSession = NextRequest &amp; { session: { user: { email: string; managerRole?: string } } };</signature>
+  <path>lib/auth/sessionMiddleware.ts</path>
+  <reason>Extends Next.js requests with authenticated manager identity required by AC3.</reason>
+</interface>
+<interface>
+  <name>AuthFailureEvent</name>
+  <kind>Structured log schema</kind>
+  <signature>{ event: 'AUTH_INVALID_SESSION'; route: string; method: string; ip: string; reason: string; requestId: string; userEmail?: string; }</signature>
+  <path>lib/logging.ts</path>
+  <reason>Defines payload recorded for AC2 and forwarded to Cloud Monitoring alert thresholds in AC4.</reason>
+</interface></interfaces>
+  <tests>
+    <standards>Unit coverage uses Jest/Vitest with Playwright for end-to-end flows, matching the architecture tech stack; authenticate requests via NextAuth test helpers and assert Pino log payloads for audit events.</standards>
+    <locations><location>tests/unit</location>
+<location>tests/integration</location>
+<location>tests/fixtures</location></locations>
+    <ideas><idea ac="AC1">Simulate a protected Next.js API route wrapped in sessionMiddleware and assert expired JWTs yield 401 while valid tokens reach the handler.</idea>
+<idea ac="AC2">Trigger invalid session attempts and verify AUTH_INVALID_SESSION log entries include route, method, IP, reason, and optional userEmail fields.</idea>
+<idea ac="AC3">Assert downstream handler receives request.session.user populated with email and role claims after middleware passes a valid session.</idea>
+<idea ac="AC4">Replay five rapid invalid tokens from the same IP and confirm alert hook dispatches Cloud Monitoring metric payload on the sixth attempt.</idea></ideas>
+  </tests>
+</story-context>
