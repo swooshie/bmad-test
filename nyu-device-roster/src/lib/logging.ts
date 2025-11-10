@@ -22,6 +22,10 @@ export type AllowlistRejectionLog = {
   email?: string | null;
   reason: "EMAIL_MISSING" | "DOMAIN_REJECTED" | "CONFIG_MISSING" | "NOT_ALLOWLISTED";
   requestId?: string;
+  ip?: string;
+  timestamp: string;
+  operatorId?: string | null;
+  allowlistRevision?: string | null;
 };
 
 export const logAuthFailure = (payload: AuthFailureLog) => {
@@ -44,7 +48,7 @@ export const logAllowlistRejection = (payload: AllowlistRejectionLog) => {
   logger.warn(payload, "Allowlist rejection");
 };
 
-export const logAllowlistAdmit = (payload: { email: string }) => {
+export const logAllowlistAdmit = (payload: { email: string; ip?: string; timestamp: string }) => {
   logger.debug(payload, "Allowlist admission");
 };
 

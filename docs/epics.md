@@ -94,6 +94,10 @@ The wow moment depends on managers trusting that the roster is exclusive to them
    **Prerequisites:** Stories A1–A3  
    **Parallel Ready:** No
 
+### Post-Review Follow-ups
+
+- 2025-11-10 – Story 1.2 [High]: Return HTTP 403 before redirecting unauthorized admissions logins so AC3’s status requirement is met (`nyu-device-roster/src/lib/auth/options.ts:95-147`).
+
 ---
 
 ## Epic B – Sync Automation & Data Integrity (FR-004, FR-005, FR-006, FR-012)

@@ -1,0 +1,102 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.2</storyId>
+    <title>Implement Google OAuth restricted to admissions managers</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-10T15-10-02Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-2-implement-google-oauth-restricted-to-admissions-managers.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As an admissions manager</asA>
+    <iWant>I want to authenticate with my NYU Google account through an allowlist-enforced OAuth flow</iWant>
+    <soThat>so that only authorized admissions managers can reach the dashboard during demos</soThat>
+    <tasks>
+      <![CDATA[
+- Implement NextAuth v5 Google provider configuration with `hd=nyu.edu` hint and allowlist enforcement inside the sign-in callback so only admissions managers receive sessions. (AC1)
+  - Reuse `models/Config.ts` plus the shared `loadConfig()` helper from Story 1-1 so allowlist lookups stay centralized and emit actionable errors when configuration is missing. (AC1)
+- Configure session strategy to issue secure HTTP-only cookies (1-hour TTL with sliding refresh) and place the verified manager identity on the request context for downstream APIs. (AC2)
+  - Add automated or manual verification proving TTL refresh behavior and identity propagation through protected routes. (AC2)
+- Build the failure-handling path that redirects non-allowlisted users to `/access-denied`, captures email/IP/timestamp, and logs each rejection at warn level for governance dashboards. (AC3)
+  - Ensure audit log entries include operator references so repeated rejections surface during compliance reviews. (AC3)
+      ]]>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <![CDATA[
+1. Google OAuth flow restricts sign-in to `@nyu.edu` accounts and validates email against the persisted allowlist before issuing a session token. [Source: docs/epics.md:60][Source: docs/PRD.md:113][Source: docs/stories/1-1-persist-admissions-manager-allowlist.md:13]
+2. Successful authentication stores a secure HTTP-only cookie (1-hour TTL with sliding refresh) and attaches manager identity to request context for downstream APIs. [Source: docs/epics.md:60][Source: docs/PRD.md:113][Source: docs/architecture.md:270]
+3. Unauthorized or non-allowlisted attempts return 403 with a friendly error page and log the event (email, IP, timestamp) at warn level for audit review. [Source: docs/epics.md:60][Source: docs/PRD.md:135][Source: docs/architecture.md:270]
+    ]]>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md" title="BMAD Demo NodeJS Project – Epic Breakdown" section="Story [A2]" snippet="Epic A’s Story A2 defines the OAuth scope: restrict sign-in to @nyu.edu, validate against the persisted allowlist, and respond with friendly 403 logging for rejected users." />
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Authentication & Authorization" snippet="PRD mandates @nyu.edu-only OAuth, secure HTTP-only cookies with 1-hour sliding TTL, and audit-ready logging for every unauthorized attempt." />
+      <doc path="docs/architecture.md" title="Architecture" section="Security Architecture – Authentication & Allowlist" snippet="Architecture blueprint directs NextAuth.js handlers under app/api/auth/[...nextauth]/route.ts to query the config collection, source secrets from Secret Manager, and attach manager context to every validated session." />
+      <doc path="docs/stories/1-1-persist-admissions-manager-allowlist.md" title="Story 1.1 – Persist admissions manager allowlist" section="Acceptance Criteria & Tasks" snippet="Story 1.1 produced the Config schema, seed tooling, and loadConfig helper that Story 1.2 must call to enforce the allowlist and log audit events." />
+      <doc path="docs/stories/1-3-session-middleware-and-audit-logging-for-auth-failures.md" title="Story 1.3 – Session middleware and audit logging" section="Completion Notes" snippet="Later story established session middleware and logging utilities which depend on Story 1.2’s NextAuth setup—this context highlights downstream consumers and reusable code paths." />
+    </docs>
+    <code>
+      <codeArtifact path="nyu-device-roster/src/app/api/auth/[...nextauth]/route.ts" kind="api-route" symbol="NextAuth handler" lines="1-6" reason="Entry point wiring NextAuth GET/POST handlers that Story 1.2 must configure to enforce admissions-only sessions." />
+      <codeArtifact path="nyu-device-roster/src/lib/auth/options.ts" kind="auth-config" symbol="authOptions" lines="1-74" reason="Defines Google provider, allowlist enforcement, and session callbacks—core implementation target for AC1 and AC2." />
+      <codeArtifact path="nyu-device-roster/src/lib/config.ts" kind="config-loader" symbol="loadConfig" lines="1-74" reason="Cached Mongo-backed configuration loader that Story 1.2 relies on to query the allowlist and configuration metadata." />
+      <codeArtifact path="nyu-device-roster/src/lib/logging.ts" kind="logging-helper" symbol="logAllowlistRejection/logAllowlistAdmit" lines="1-53" reason="Structured logging utilities used to emit warn-level audit events for rejected sign-ins per AC3." />
+      <codeArtifact path="nyu-device-roster/src/lib/auth/sessionMiddleware.ts" kind="middleware" symbol="withSession" lines="1-97" reason="Downstream session middleware from Story 1.3 that consumes Story 1.2’s NextAuth setup; highlights required session shape." />
+      <codeArtifact path="nyu-device-roster/tests/unit/lib/auth/options.test.ts" kind="test" symbol="NextAuth allowlist enforcement tests" lines="1-95" reason="Vitest coverage validating allowlist behavior, domain checks, missing config handling, and successful admissions." />
+      <codeArtifact path="nyu-device-roster/tests/unit/lib/config.test.ts" kind="test" symbol="config helpers tests" lines="1-74" reason="Tests ensuring `loadConfig` memoization and config upsert behavior; informs integration touch points for Story 1.2." />
+    </code>
+    <dependencies>
+      <dependency ecosystem="node" manifest="nyu-device-roster/package.json">
+        <package name="next" version="16.0.1" />
+        <package name="next-auth" version="^4.24.13" />
+        <package name="mongoose" version="^8.19.3" />
+        <package name="pino" version="^10.1.0" />
+        <package name="react" version="19.2.0" />
+        <package name="react-dom" version="19.2.0" />
+        <package name="tsconfig-paths" version="^4.2.0" />
+        <package name="zod" version="^4.1.12" />
+        <package name="vitest" version="^4.0.7" scope="devDependency" />
+        <package name="@types/node" version="^20" scope="devDependency" />
+      </dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <![CDATA[
+- Keep NextAuth handlers under `app/api/auth/[...nextauth]/route.ts` per architecture map; share logic via `lib/auth.ts`/`lib/config.ts` rather than duplicating secrets or configuration access. [Source: docs/architecture.md:125]
+- Secrets (Google OAuth client, session signing key) must come from Secret Manager—never commit credentials or rely on plain env files in the repo. [Source: docs/architecture.md:270]
+- Rejected sign-ins must emit warn-level Pino logs with reason codes so governance dashboards and log-based metrics capture unauthorized attempts consistently. [Source: docs/architecture.md:153][Source: docs/PRD.md:135]
+- Story 1.3’s session middleware expects `session.user.email` to be populated; Story 1.2 must normalize emails (lowercase) before attaching to the session. [Source: docs/stories/1-3-session-middleware-and-audit-logging-for-auth-failures.md:78]
+    ]]>
+  </constraints>
+  <interfaces>
+    <![CDATA[
+- Interface: `/api/auth/[...nextauth]` (GET/POST) — NextAuth route handling Google OAuth callbacks, session issuance, and sign-in checks; Story 1.2 configures provider + callbacks referenced by downstream middleware. [Source: nyu-device-roster/src/app/api/auth/[...nextauth]/route.ts:1-6]
+    ]]>
+  </interfaces>
+  <tests>
+    <standards>
+      <![CDATA[
+- Use Vitest for unit tests covering NextAuth callbacks, config loaders, and allowlist logic; rely on mocks for Secret Manager or Mongo models per existing suites under `tests/unit`. [Source: nyu-device-roster/tests/unit/lib/auth/options.test.ts:1-95]
+      ]]>
+    </standards>
+    <locations>
+      <![CDATA[
+- Unit tests: `nyu-device-roster/tests/unit/lib/**/*.test.ts`
+- Future integration tests for auth flow can live under `nyu-device-roster/tests/integration/`
+      ]]>
+    </locations>
+    <ideas>
+      <![CDATA[
+- AC1: Expand `auth.options.test.ts` to cover Secret Manager outages and allowlist cache refresh behavior (mock `loadConfig` failures).
+- AC2: Add middleware-level test ensuring session cookies carry normalized email and TTL refresh logic (simulate refresh token exchange).
+- AC3: Add logging assertion to guarantee warn-level entries capture email, IP, and timestamp when allowlist rejection occurs.
+      ]]>
+    </ideas>
+  </tests>
+</story-context>
