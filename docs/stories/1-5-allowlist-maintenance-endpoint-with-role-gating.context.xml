@@ -1,0 +1,114 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>5</storyId>
+    <title>Allowlist maintenance endpoint with role gating</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-10T17:11:46Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-5-allowlist-maintenance-endpoint-with-role-gating.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As a lead manager</asA>
+    <iWant>I want a protected /api/config/allowlist endpoint to review and update the admissions manager email list</iWant>
+    <soThat>demo access stays synchronized without redeploying and every roster change is auditable</soThat>
+    <tasks>
+  <task id="T1" ac="AC1-AC2">
+    <summary>Design GET/PUT contract for /api/config/allowlist including error envelope and diff summary schema, ensuring managerRole=lead is enforced.</summary>
+    <subtasks>
+      <item>Confirm NextAuth session surfaces managerRole claims and document structured 403 responses.</item>
+    </subtasks>
+    <sources>docs/stories/1-5-allowlist-maintenance-endpoint-with-role-gating.md:24-33</sources>
+  </task>
+  <task id="T2" ac="AC3-AC4">
+    <summary>Extend models/Config.ts and schemas/config.ts with allowlist CRUD utilities and validation helpers enforcing @nyu.edu plus immediate persistence.</summary>
+    <subtasks>
+      <item>Add unit tests covering duplicate suppression, invalid email errors, and cache busting.</item>
+    </subtasks>
+    <sources>docs/stories/1-5-allowlist-maintenance-endpoint-with-role-gating.md:35-37</sources>
+  </task>
+  <task id="T3" ac="AC1-AC4">
+    <summary>Implement app/api/config/allowlist/route.ts using shared auth middleware to return current allowlist and diff summary after writes.</summary>
+    <subtasks>
+      <item>Ensure PUT persists atomically and responses include {added, removed, unchanged} arrays.</item>
+    </subtasks>
+    <sources>docs/stories/1-5-allowlist-maintenance-endpoint-with-role-gating.md:37-40</sources>
+  </task>
+  <task id="T4" ac="AC5">
+    <summary>Instrument Pino logging and sync_events audit appends capturing actor, timestamp, and diff metadata for every allowlist change.</summary>
+    <subtasks>
+      <item>Verify warn-level events appear in governance dashboards/log viewers.</item>
+    </subtasks>
+    <sources>docs/stories/1-5-allowlist-maintenance-endpoint-with-role-gating.md:40-43</sources>
+  </task>
+  <task id="T5" ac="AC1-AC4">
+    <summary>Add regression tests (API and integration) ensuring GET/PUT enforce role gating, emit structured responses, and update allowlist immediately.</summary>
+    <subtasks>
+      <item>Cover invalid roles, diff output, and next-login refresh expectations.</item>
+    </subtasks>
+    <sources>docs/stories/1-5-allowlist-maintenance-endpoint-with-role-gating.md:43-45</sources>
+  </task>
+</tasks>
+  </story>
+
+  <acceptanceCriteria><criteria>
+  <item id="AC1">/api/config/allowlist GET/PUT require managerRole=lead in the authenticated session; others get structured 403 responses logged for governance.</item>
+  <item id="AC2">Responses include the current allowlist plus diff summary fields (added, removed, unchanged) after each request.</item>
+  <item id="AC3">PUT validations enforce @nyu.edu emails, reject invalid entries with descriptive errors, and ignore duplicates safely.</item>
+  <item id="AC4">Successful updates persist to the shared config collection and apply on the very next login without redeploy.</item>
+  <item id="AC5">Each change writes an audit entry with actor/timestamp/diff to structured logs and sync_events.</item>
+</criteria></acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+  <artifact path="docs/epics.md" title="Epic A" section="Story [A5]" snippet="Defines /api/config/allowlist GET/PUT guarded by managerRole=lead JWTs with diff summaries and audit logging." />
+  <artifact path="docs/PRD.md" title="PRD" section="FR-002 Allowlist Management" snippet="FR-002 requires allowlist updates to take effect on next login, mandates audit references, and describes structured 403 responses with { errorCode, message, details }." />
+  <artifact path="docs/architecture.md" title="Architecture" section="Authentication & Config" snippet="NextAuth uses Secret-Manager-backed allowlist lookups, persists configuration in the config collection, and routes audit logs via Pino and sync_events." />
+  <artifact path="docs/stories/1-1-persist-admissions-manager-allowlist.md" title="Story 1.1" section="Story" snippet="Establishes the config collection schema storing allowlist, devicesSheetId, and operator metadata reused by the maintenance endpoint." />
+  <artifact path="docs/stories/1-2-implement-google-oauth-restricted-to-admissions-managers.md" title="Story 1.2" section="Acceptance Criteria" snippet="Session tokens include managerRole claims and unauthorized attempts must log structured governance data, aligning with role gating requirements." />
+  <artifact path="docs/stories/1-3-session-middleware-and-audit-logging-for-auth-failures.md" title="Story 1.3" section="Dev Notes" snippet="Session middleware enforces NextAuth tokens across /api routes and streams audit events through logAuth* utilities and sync_events." />
+</docs>
+    <code>
+  <artifact path="nyu-device-roster/src/lib/auth/sessionMiddleware.ts" kind="middleware" symbol="withSession" lines="1-120" reason="Must wrap allowlist API handlers to enforce authenticated sessions and access to managerRole claims." />
+  <artifact path="nyu-device-roster/src/lib/auth/options.ts" kind="auth-config" symbol="authOptions" lines="61-175" reason="Defines NextAuth callbacks that inject managerRole metadata and log allowlist rejections reused by role gating." />
+  <artifact path="nyu-device-roster/src/lib/config.ts" kind="config-loader" symbol="loadConfig" lines="14-110" reason="Central helper for reading/updating the config collection that allowlist endpoint must reuse." />
+  <artifact path="nyu-device-roster/src/models/Config.ts" kind="model" symbol="ConfigModel" lines="1-200" reason="Schema with allowlist fields and change history enabling diff tracking." />
+  <artifact path="nyu-device-roster/src/schemas/config.ts" kind="schema" symbol="configSchema" lines="1-120" reason="Zod schema enforcing allowlist invariants; PUT validation should extend this definition." />
+  <artifact path="nyu-device-roster/scripts/seed-allowlist.ts" kind="script" symbol="seedAllowlist" lines="1-200" reason="Existing CLI for allowlist updates demonstrates persistence + audit pipeline to mirror in API route." />
+  <artifact path="nyu-device-roster/tests/unit/lib/auth/sessionMiddleware.test.ts" kind="test" symbol="withSession suite" lines="1-120" reason="Shows how role/identity enforcement is validated in tests and should inspire new API coverage." />
+</code>
+    <dependencies>
+  <ecosystem name="node (package.json)">
+    <package name="next" version="16.0.1" note="Hosts the App Router API route for /api/config/allowlist." />
+    <package name="next-auth" version="^4.24.13" note="Provides session tokens with managerRole claims consumed by the endpoint." />
+    <package name="mongoose" version="^8.19.3" note="Backs ConfigModel persistence for allowlist storage." />
+    <package name="pino" version="^10.1.0" note="Structured logging pipeline for governance events and audit entries." />
+    <package name="zod" version="^4.1.12" note="Schema validation for allowlist payloads and diff responses." />
+  </ecosystem>
+</dependencies>
+  </artifacts>
+
+  <constraints>
+  <constraint source="docs/epics.md:88">Endpoint must restrict access to managerRole=lead tokens and return diff summaries per Epic A5.</constraint>
+  <constraint source="docs/PRD.md:101-165">PRD mandates structured 403 envelopes and requires allowlist changes to take effect on next login without redeploy.</constraint>
+  <constraint source="docs/architecture.md:240-268">Architecture fixes the config collection as canonical storage and routes audit events through Pino + sync_events.</constraint>
+  <constraint source="docs/stories/1-1-persist-admissions-manager-allowlist.md:1-40">Must reuse existing config schema and change history semantics introduced in Story 1.1.</constraint>
+</constraints>
+  <interfaces>
+  <interface name="withSession" kind="middleware" signature="withSession<TContext>(handler) → RouteHandler enforcing authenticated sessions" path="nyu-device-roster/src/lib/auth/sessionMiddleware.ts" />
+  <interface name="ConfigModel" kind="mongoose model" signature="ConfigModel.findOneAndUpdate(query, update, options)" path="nyu-device-roster/src/models/Config.ts" />
+  <interface name="seedAllowlist" kind="script" signature="seedAllowlist(options: { allowlist, operatorId, source })" path="nyu-device-roster/scripts/seed-allowlist.ts" />
+</interfaces>
+  <tests>
+  <standards>Architecture doc (docs/architecture.md:202-210) prescribes co-located unit tests plus integration suites via npm run test and npm run test:e2e; reuse Vitest for API handlers and Playwright for admin flows.</standards>
+  <locations>nyu-device-roster/tests/unit/**, nyu-device-roster/tests/integration/**, src/app/api/config/**/__tests__.</locations>
+  <ideas>
+    <idea ac="AC1">Add middleware tests asserting managerRole=lead is required and 403 payloads remain structured when role claims are missing.</idea>
+    <idea ac="AC2">Write API tests that compare GET/PUT responses to ensure diff summaries contain added/removed/unchanged arrays.</idea>
+    <idea ac="AC3">Unit-test validation helpers with invalid domains, uppercase emails, and duplicates to prove normalization logic.</idea>
+    <idea ac="AC4">Simulate login flow after PUT to confirm loadConfig cache reset applies new allowlist data immediately.</idea>
+    <idea ac="AC5">Add audit logging tests verifying logAuth* and sync_events payloads capture actor/timestamp/diff metadata.</idea>
+  </ideas>
+</tests>
+</story-context>

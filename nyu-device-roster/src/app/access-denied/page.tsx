@@ -10,11 +10,13 @@ const REASON_COPY: Record<string, string> = {
     "The admissions demo is restricted to approved NYU managers. Reach out to the operator listed in the audit log if you believe this is incorrect.",
 };
 
+type SearchParamsInput =
+  | Promise<Record<string, string | string[] | undefined>>
+  | Record<string, string | string[] | undefined>
+  | undefined;
+
 type AccessDeniedPageProps = {
-  searchParams?: {
-    reason?: string;
-    requestId?: string;
-  };
+  searchParams?: SearchParamsInput;
 };
 
 export const metadata: Metadata = {
@@ -22,10 +24,24 @@ export const metadata: Metadata = {
   description: "Admissions demo access is restricted to NYU managers on the allowlist.",
 };
 
-export default function AccessDeniedPage({ searchParams }: AccessDeniedPageProps) {
-  const reasonKey = searchParams?.reason?.toUpperCase() ?? "default";
+const resolveSearchParams = async (
+  params: SearchParamsInput
+): Promise<Record<string, string | undefined>> => {
+  const resolved = await params;
+  if (!resolved) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(resolved).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value])
+  );
+};
+
+export default async function AccessDeniedPage({ searchParams }: AccessDeniedPageProps) {
+  const resolvedParams = await resolveSearchParams(searchParams);
+  const reasonKey = resolvedParams.reason?.toUpperCase() ?? "default";
   const message = REASON_COPY[reasonKey] ?? REASON_COPY.default;
-  const requestId = searchParams?.requestId;
+  const requestId = resolvedParams.requestId;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-6 px-6 py-12 text-slate-900">

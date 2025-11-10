@@ -1,11 +1,52 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const googleProviderSpy = vi.fn().mockReturnValue({
+  id: "google",
+  name: "Google",
+  type: "oauth",
+});
+
+vi.mock("next-auth/providers/google", () => ({
+  __esModule: true,
+  default: googleProviderSpy,
+}));
+
 vi.mock("next/headers", () => ({
   headers: vi.fn(),
 }));
 
+const mockLoadConfig = vi.fn();
+const mockEnsureRuntimeConfig = vi
+  .fn()
+  .mockResolvedValue({
+    config: {
+      allowlist: [],
+      devicesSheetId: "sheet-123",
+      collectionName: "config",
+      lastUpdatedAt: new Date(),
+      updatedBy: "operator@example.com",
+      changes: [],
+    },
+    secrets: {
+      googleClientId: "secret-client-id",
+      googleClientSecret: "secret-client-secret",
+      nextAuthSecret: "nextauth-secret",
+      mongoUri: "mongodb://example",
+      sheetsServiceAccount: {
+        type: "service_account",
+        project_id: "demo",
+        private_key_id: "key",
+        private_key: "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n",
+        client_email: "svc@example.com",
+        client_id: "123",
+        token_uri: "https://oauth2.googleapis.com/token",
+      },
+    },
+  });
+
 vi.mock("@/lib/config", () => ({
-  loadConfig: vi.fn(),
+  loadConfig: mockLoadConfig,
+  ensureRuntimeConfig: mockEnsureRuntimeConfig,
 }));
 
 vi.mock("@/lib/logging", () => {
@@ -39,9 +80,15 @@ const mockRequestHeaders = (overrides: Record<string, string> = {}) => {
 };
 
 describe("NextAuth allowlist enforcement", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  beforeEach(async () => {
+    vi.mocked(mockedHeaders).mockReset();
     mockRequestHeaders();
+    mockLoadConfig.mockClear();
+    mockEnsureRuntimeConfig.mockClear();
+
+    const { logAllowlistRejection, logAllowlistAdmit } = await import("@/lib/logging");
+    vi.mocked(logAllowlistRejection).mockClear();
+    vi.mocked(logAllowlistAdmit).mockClear();
   });
 
   const buildConfig = (allowlist: string[]) => ({
@@ -187,5 +234,19 @@ describe("NextAuth allowlist enforcement", () => {
     } as any);
 
     expect(token?.email).toBe("manager@nyu.edu");
+  });
+});
+
+describe("secret-backed NextAuth bootstrap", () => {
+  it("loads provider secrets from Secret Manager runtime config", async () => {
+    const { authOptions } = await import("@/lib/auth/options");
+
+    expect(googleProviderSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: "secret-client-id",
+        clientSecret: "secret-client-secret",
+      })
+    );
+    expect(authOptions.secret).toBe("nextauth-secret");
   });
 });

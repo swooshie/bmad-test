@@ -1,0 +1,99 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>B</epicId>
+    <storyId>2.2</storyId>
+    <title>Normalize and upsert devices into MongoDB</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-10</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-2-normalize-and-upsert-devices-into-mongodb.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As a data pipeline developer</asA>
+    <iWant>I want to transform Google Sheets rows into normalized MongoDB documents with reliable upsert semantics</iWant>
+    <soThat>so the manager dashboard always reads consistent device data without duplicate keys or stale timestamps</soThat>
+    <tasks><task-list>
+  <task id="T1" ac="AC1" artifact="workers/sync/transform.ts">Define DTO + validation layer mapping Sheets headers to canonical schema with defaulting/anonymization hooks.</task>
+  <task id="T1a" parent="T1" artifact="docs/reference">Document header-to-field mapping plus fallback/error messaging for missing or extra columns.</task>
+  <task id="T2" ac="AC1,AC2" artifact="workers/sync/index.ts">Build transformer + upsert module consuming fetchSheetData output, applying change detection, and upserting via models/Device.</task>
+  <task id="T2a" parent="T2" ac="AC2,AC4">Emit structured logs with sheetId, added/updated/unchanged counts, anomalies, duration, and sync_events entries.</task>
+  <task id="T3" ac="AC3" artifact="scripts/verify-sync-indexes.ts">Ensure compound index coverage (deviceId, assignedTo, lastSyncedAt) with automated verification.</task>
+  <task id="T4" ac="AC5" artifact="tests">Author unit + integration tests for transformation accuracy, idempotent upserts, and index enforcement.</task>
+  <task id="T5" ac="AC6" artifact="docs/runbook/sync-operations.md">Update runbook with normalization rules, index prerequisites, and troubleshooting guidance.</task>
+</task-list></tasks>
+  </story>
+
+  <acceptanceCriteria><criteria>
+  <criterion id="AC1">Transformer converts sheet columns into canonical device schema with deterministic casting and lastSyncedAt stamps.</criterion>
+  <criterion id="AC2">Upsert pipeline uses (deviceId + sheetId) compound key, preserves lastSyncedAt for unchanged rows, and logs added/updated/unchanged counts.</criterion>
+  <criterion id="AC3">Indexes on deviceId, assignedTo, lastSyncedAt exist or are created, with verification recorded for grid performance.</criterion>
+  <criterion id="AC4">Transformer emits structured audit/log payloads (sheetId, anomalies, summary counts) and writes sync_events entries.</criterion>
+  <criterion id="AC5">Automated tests cover transformation accuracy, idempotent upserts, index enforcement, and missing header regressions.</criterion>
+  <criterion id="AC6">Runbook/docs updated with normalization rules, index prerequisites, and troubleshooting guidance.</criterion>
+</criteria></acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+  <artifact path="docs/epics.md" title="Epic B – Story B2" section="Story B2">
+    Story [B2] mandates transformer mapping for device schema, compound upsert on deviceId + sheetId, and index enforcement for deviceId, assignedTo, lastSyncedAt.
+  </artifact>
+  <artifact path="docs/PRD.md" title="PRD" section="FR-006 Data Transformation">
+    FR-006 details the requirement to normalize Google Sheets rows into MongoDB documents with consistent typing, powering `/api/devices` and `/api/sync` with actionable error codes.
+  </artifact>
+  <artifact path="docs/PRD.md" title="PRD" section="Governance & Logging">
+    Governance section emphasizes retaining last-known-good data, logging anomalies, and surfacing error codes so demo operators can narrate ingest outcomes.
+  </artifact>
+  <artifact path="docs/architecture.md" title="Architecture" section="Sync Orchestration & Data Layer">
+    Architecture assigns persistence to `models/Device.ts` and `schemas/device.ts`, with workers/sync orchestrating fetch → transform → upsert plus Pino logging for counts/durations.
+  </artifact>
+  <artifact path="docs/architecture.md" title="Architecture" section="Observability">
+    Observability guidelines require structured logs with requestId, sheetId, and row deltas plus `sync_events` entries for every ingest run.
+  </artifact>
+  <artifact path="docs/stories/2-1-build-google-sheets-fetch-module.md" title="Story 2.1" section="Implementation Alignment">
+    Story 2.1 defines the fetch module interface and typed payload that this transformer must consume to avoid duplicate pagination or credential logic.
+  </artifact>
+  <artifact path="docs/sprint-status.yaml" title="Sprint Status" section="development_status">
+    Tracks Story 2.2 as drafted, linking to story key `2-2-normalize-and-upsert-devices-into-mongodb`, ensuring context file location matches planning references.
+  </artifact>
+</docs>
+    <code>
+  <artifact path="workers/sync/transform.ts" kind="worker" symbol="transformRows" lines="1-220" reason="Applies DTO mapping, defaulting, and change detection before upsert."></artifact>
+  <artifact path="workers/sync/index.ts" kind="worker" symbol="runSyncPipeline" lines="1-200" reason="Coordinates fetch → transform → upsert flow and logs summary metrics."></artifact>
+  <artifact path="models/Device.ts" kind="model" symbol="DeviceModel" lines="1-180" reason="Mongoose schema enforcing device fields, compound key helpers, and timestamps."></artifact>
+  <artifact path="schemas/device.ts" kind="schema" symbol="DeviceSchema" lines="1-160" reason="Shared Zod schema describing canonical device shape consumed by transformer."></artifact>
+  <artifact path="scripts/verify-sync-indexes.ts" kind="script" symbol="verifySyncIndexes" lines="1-140" reason="Ensures indexes on deviceId, assignedTo, lastSyncedAt exist before syncing."></artifact>
+  <artifact path="tests/integration/sync.spec.ts" kind="test" symbol="syncPipelineTests" lines="1-220" reason="Integration tests proving idempotent upserts and metrics logging."></artifact>
+</code>
+    <dependencies>
+  <ecosystem name="node">
+    <package name="mongoose" version="^8.6.0" reason="ODM powering Device model and compound upsert helpers."></package>
+    <package name="mongodb" version="^6.10.0" reason="Native driver underpinning bulkWrite/change detection when bypassing ODM."></package>
+    <package name="pino" version="^10.1.0" reason="Structured logging of sync metrics and anomalies."></package>
+    <package name="zod" version="^3.23.8" reason="DTO validation for Sheets rows before writing to MongoDB."></package>
+  </ecosystem>
+</dependencies>
+  </artifacts>
+
+  <constraints>
+  <constraint>Transformer must treat lib/google-sheets.ts output as the single source; no duplicate API calls or credential handling.</constraint>
+  <constraint>All writes occur via bulk upsert with idempotent semantics and must log requestId, sheetId, and row counts per architecture guidelines.</constraint>
+  <constraint>Preserve last-known-good dataset on failure—abort writes if validation fails and emit audit metadata before exiting.</constraint>
+</constraints>
+  <interfaces>
+  <interface name="transformRows" kind="function" signature="transformRows({ rows: TypedRow[]; sheetId: string }): Promise<TransformResult>">
+    <path>workers/sync/transform.ts</path>
+  </interface>
+  <interface name="DeviceUpsertPayload" kind="type" signature="{ deviceId: string; sheetId: string; assignedTo: string; status: string; condition: string; offboardingStatus?: string; lastSeen?: string; lastSyncedAt: string }">
+    <path>schemas/device.ts</path>
+  </interface>
+  <interface name="SyncEventEntry" kind="model" signature="{ runId: string; sheetId: string; counts: { added: number; updated: number; unchanged: number }; anomalies: string[] }">
+    <path>models/SyncEvent.ts</path>
+  </interface>
+</interfaces>
+  <tests>
+    <standards>Use existing Jest/Vitest harness (tests/unit + tests/integration) with Mongo memory server fixtures per architecture guidance; log assertions for Pino output.</standards>
+    <locations>tests/unit/workers/sync/**/*.test.ts; tests/integration/sync/**/*.spec.ts</locations>
+    <ideas><idea ac="AC1">Validate DTO rejects rows missing deviceId or status and coerces enums/dates deterministically.</idea><idea ac="AC2">Simulate unchanged rows to confirm lastSyncedAt remains stable and metrics show zero updates.</idea><idea ac="AC3">Drop an index then run verify-sync script expecting recreation and logged confirmation.</idea><idea ac="AC4">Inject duplicate deviceId+sheetId to ensure anomaly logged and sync_events entry created.</idea><idea ac="AC5">Integration test ensures idempotent upsert plus anonymization hook coverage.</idea><idea ac="AC6">Doc regression test to confirm runbook references new normalization + index sections.</idea></ideas>
+  </tests>
+</story-context>

@@ -52,4 +52,63 @@ export const logAllowlistAdmit = (payload: { email: string; ip?: string; timesta
   logger.debug(payload, "Allowlist admission");
 };
 
+type AllowlistDiffLog = {
+  added: string[];
+  removed: string[];
+  unchanged: string[];
+};
+
+export const logAllowlistEndpointEvent = (payload: {
+  actorEmail?: string | null;
+  actorRole?: string | null;
+  requestId?: string;
+  ip?: string;
+  outcome: "granted" | "denied";
+  reason?: string;
+  diff?: AllowlistDiffLog;
+}) => {
+  logger.warn(
+    {
+      event: "ALLOWLIST_ENDPOINT",
+      workflow: "allowlist-maintenance",
+      actorEmail: payload.actorEmail ?? null,
+      actorRole: payload.actorRole ?? null,
+      requestId: payload.requestId ?? null,
+      ip: payload.ip ?? null,
+      outcome: payload.outcome,
+      reason: payload.reason ?? null,
+      diff: payload.diff,
+    },
+    payload.outcome === "denied"
+      ? "Allowlist endpoint access denied"
+      : "Allowlist endpoint accessed"
+  );
+};
+
+export type SecretManagerLog = {
+  event: "SECRET_MANAGER_FAILURE";
+  secretKey: string;
+  reason: string;
+  attempt?: number;
+  action?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export const logSecretManagerAlert = (payload: SecretManagerLog) => {
+  logger.error(payload, "Secret Manager failure");
+};
+
+export const logConfigValidationFailure = (payload: {
+  reason: string;
+  metadata?: Record<string, unknown>;
+}) => {
+  logger.error(
+    {
+      event: "CONFIG_VALIDATION_FAILURE",
+      ...payload,
+    },
+    "Runtime configuration validation failed"
+  );
+};
+
 export default logger;

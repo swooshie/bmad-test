@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
-import { loadConfig } from "@/lib/config";
+import { ensureRuntimeConfig, loadConfig } from "@/lib/config";
 import { logAllowlistAdmit, logAllowlistRejection } from "@/lib/logging";
 
 const ADMISSIONS_DOMAIN_SUFFIX = "@nyu.edu";
@@ -16,8 +16,8 @@ type RequestMetadata = {
   requestId?: string;
 };
 
-const readRequestMetadata = (): RequestMetadata => {
-  const headerBag = headers();
+const readRequestMetadata = async (): Promise<RequestMetadata> => {
+  const headerBag = await headers();
   const forwardedFor = headerBag.get("x-forwarded-for");
   const ipCandidate = forwardedFor?.split(",")[0]?.trim() ?? headerBag.get("x-real-ip") ?? undefined;
 
@@ -54,15 +54,13 @@ const buildRejectionPayload = ({
   allowlistRevision: allowlistRevision ?? null,
 });
 
-/**
- * Base NextAuth configuration with admissions allowlist enforcement.
- * Story 1.3 relies on these helpers to obtain a server-side session.
- */
+const runtimeBootstrap = await ensureRuntimeConfig();
+
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      clientId: runtimeBootstrap.secrets.googleClientId,
+      clientSecret: runtimeBootstrap.secrets.googleClientSecret,
       allowDangerousEmailAccountLinking: false,
       authorization: {
         params: {
@@ -77,6 +75,7 @@ export const authOptions: NextAuthOptions = {
     maxAge: SESSION_TTL_SECONDS,
     updateAge: SESSION_REFRESH_WINDOW_SECONDS,
   },
+  secret: runtimeBootstrap.secrets.nextAuthSecret,
   jwt: {
     maxAge: SESSION_TTL_SECONDS,
   },
@@ -100,7 +99,7 @@ export const authOptions: NextAuthOptions = {
       const rawEmail =
         user?.email ?? (typeof profile?.email === "string" ? profile.email : undefined);
       const email = rawEmail?.trim().toLowerCase();
-      const { ip, requestId } = readRequestMetadata();
+      const { ip, requestId } = await readRequestMetadata();
 
       if (!email) {
         logAllowlistRejection(

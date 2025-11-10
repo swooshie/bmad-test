@@ -1,0 +1,87 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>B</epicId>
+    <storyId>2.1</storyId>
+    <title>Build Google Sheets fetch module</title>
+    <status>drafted</status>
+    <generatedAt>2025-01-15</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-1-build-google-sheets-fetch-module.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As a data pipeline developer</asA>
+    <iWant>I want a reusable Google Sheets fetch module that authenticates via service account credentials and returns typed row data</iWant>
+    <soThat>so downstream normalization and sync jobs start from clean arrays with meaningful error codes</soThat>
+    <tasks><task-list>
+  <task id="T1" ac="AC1,AC2,AC4" artifact="lib/google-sheets.ts">Define the module interface with inputs (sheetId, tab, credential handle) and typed output contract consumed by workers/sync and app/api/sync/run.</task>
+  <task id="T1a" parent="T1" artifact="docs/usage">Document invocation guidance for orchestration layers so every caller routes through a single entry point.</task>
+  <task id="T2" ac="AC1" artifact="lib/auth.ts">Implement Secret Manager credential loader using shared auth helpers; validate configuration before API calls and fail fast with descriptive errors.</task>
+  <task id="T2a" parent="T2">Guard against missing sheetId/tab inputs and return structured validation errors to callers.</task>
+  <task id="T3" ac="AC2,AC3,AC4" artifact="lib/google-sheets.ts">Build Google Sheets fetch logic with pagination support, type coercion helpers, and structured error mapping with Pino logging.</task>
+  <task id="T3a" parent="T3">Expose retry/backoff hooks so Cloud Tasks can plug in policies without duplicating logic.</task>
+  <task id="T4" ac="AC5" artifact="tests">Create unit, integration, and contract tests covering success, pagination, type conversions, and each structured error path.</task>
+  <task id="T5" ac="AC3,AC4" artifact="docs/runbook/sync-operations.md">Update runbook guidance for configuring sheet IDs, monitoring logs, and interpreting error codes.</task>
+</task-list></tasks>
+  </story>
+
+  <acceptanceCriteria><criteria>
+  <criterion id="AC1">Module authenticates via Secret Manager-sourced credentials, exposes stable interface for sync workers, and never uses plaintext secrets.</criterion>
+  <criterion id="AC2">fetchSheetData returns headers plus typed rows with transparent pagination so downstream normalization consumes uniform arrays.</criterion>
+  <criterion id="AC3">All Sheets API failures map to structured error codes (`SHEET_NOT_FOUND`, `RATE_LIMIT`, `OAUTH_REVOKED`, etc.) with contextual logging.</criterion>
+  <criterion id="AC4">Surface supports Cloud Scheduler/Tasks retries, exposes duration/row metrics, and stays within the 60-second ingest SLA assumptions.</criterion>
+  <criterion id="AC5">Automated tests cover success, pagination, type conversion, and structured error paths to block regressions.</criterion>
+</criteria></acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+  <artifact path="docs/epics.md" title="Epic B – Sync Automation" section="Story B1">
+    Story [B1]: Build Google Sheets fetch module. Module authenticates with service account from Secret Manager and reads devices tab by ID. Returns headers + rows with typed values (strings, numbers, dates) and handles pagination while converting Sheets API errors into structured codes (`SHEET_NOT_FOUND`, `RATE_LIMIT`, `OAUTH_REVOKED`).
+  </artifact>
+  <artifact path="docs/PRD.md" title="PRD" section="API Specification">
+    Error responses follow `{ errorCode, message, details }` contract to simplify demo narration. Upstream Sheets errors translated into actionable codes (e.g., `SHEET_NOT_FOUND`, `SHEETS_RATE_LIMIT`, `OAUTH_REVOKED`).
+  </artifact>
+  <artifact path="docs/PRD.md" title="PRD" section="FR-004 Scheduled Sync">
+    FR-004 ties the 60-second ingest SLA to Cloud Scheduler/Tasks runs, reinforcing the need for a resilient Sheets fetcher feeding downstream normalization quickly.
+  </artifact>
+  <artifact path="docs/architecture.md" title="Architecture" section="Integration Points">
+    Google Sheets → Sync Worker: `lib/google-sheets.ts` uses Secret Manager credentials to fetch sheet data. Cloud Scheduler + Cloud Tasks execute the pipeline so fetch, transform, and logging stay aligned with the 60-second ingest promise.
+  </artifact>
+  <artifact path="docs/ux-design-specification.md" title="UX Design Specification" section="Governance Alerts">
+    UX guidance expects sync error states to surface actionable codes and retry cues in the manager UI, so the fetch module must emit structured codes/logs consumed by banners and toasts.
+  </artifact>
+</docs>
+    <code>
+  <artifact path="lib/google-sheets.ts" kind="service" symbol="fetchSheetData" lines="1-200" reason="Primary module implementing authenticated fetch, pagination, type coercion, and error mapping required by the story."></artifact>
+  <artifact path="lib/auth.ts" kind="utility" symbol="loadServiceAccount" lines="1-160" reason="Shared Secret Manager credential loader pattern reused by Google Sheets module."></artifact>
+  <artifact path="workers/sync/index.ts" kind="worker" symbol="runSyncPipeline" lines="1-180" reason="Cloud Tasks entry point that will consume the fetch module and must integrate structured error codes for retries."></artifact>
+  <artifact path="app/api/sync/run/route.ts" kind="api" symbol="POST /api/sync/run" lines="1-140" reason="Manual/cron sync handler expected to invoke Google Sheets fetcher and propagate metrics+errors."></artifact>
+</code>
+    <dependencies>
+  <ecosystem name="node">
+    <package name="googleapis" version="^164.1.0" reason="Google Sheets API client used by fetch module."></package>
+    <package name="@google-cloud/tasks" version="^6.2.1" reason="Scheduler/worker integration that triggers fetch module runs."></package>
+    <package name="pino" version="^10.1.0" reason="Structured logging pipeline referenced by acceptance criteria for error codes."></package>
+  </ecosystem>
+</dependencies>
+  </artifacts>
+
+  <constraints>
+  <constraint>Use Secret Manager for all credentials; no plaintext service accounts within code or config.</constraint>
+  <constraint>Fetch module must emit structured error codes and Pino log events (requestId, sheetId) for every failure path.</constraint>
+  <constraint>Implement idempotent fetch semantics with retry/backoff hooks to align with Cloud Scheduler/Tasks orchestration.</constraint>
+</constraints>
+  <interfaces>
+  <interface name="fetchSheetData" kind="function" signature="fetchSheetData({ sheetId, tabName?, credentialHandle }): Promise<{ headers: string[]; rows: TypedRow[]; metrics: FetchMetrics; errors?: StructuredError }>">
+    <path>lib/google-sheets.ts</path>
+  </interface>
+  <interface name="SyncWorkerRequest" kind="queue payload" signature="{ taskId: string; sheetId: string; correlationId: string }">
+    <path>workers/sync/index.ts</path>
+  </interface>
+</interfaces>
+  <tests>
+    <standards>Tests live under tests/unit for module logic and tests/integration for worker orchestration; use Jest/Vitest conventions documented in architecture.md.</standards>
+    <locations>tests/unit/lib/**/*.test.ts; tests/integration/sync/**/*.spec.ts</locations>
+    <ideas><idea ac="AC1">Credential loader throws when Secret Manager handle missing, ensuring no plaintext fallback.</idea><idea ac="AC2">fetchSheetData paginates 1k row sheet and returns typed date/number conversions.</idea><idea ac="AC3">Simulate Sheets API RATE_LIMIT response and expect structured error plus logged metadata.</idea><idea ac="AC4">Retry hook invoked with exponential backoff metadata when Cloud Tasks delivers duplicate task.</idea><idea ac="AC5">Contract test verifying downstream transformer receives headers + typed rows with consistent shape.</idea></ideas>
+  </tests>
+</story-context>

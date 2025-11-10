@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { getMongoConnectionUri } from "@/lib/secrets";
+
 declare global {
   // eslint-disable-next-line no-var, vars-on-top
   var __mongoConnectionPromise: Promise<typeof mongoose> | null | undefined;
@@ -9,17 +11,15 @@ let cachedConnection: typeof mongoose | null = null;
 
 const connectionTimeoutMs = 30_000;
 
-export async function connectToDatabase(uri = process.env.MONGODB_URI): Promise<typeof mongoose> {
-  if (!uri) {
-    throw new Error("MONGODB_URI environment variable is required to connect to MongoDB");
-  }
+export async function connectToDatabase(uri?: string): Promise<typeof mongoose> {
+  const resolvedUri = uri ?? (await getMongoConnectionUri());
 
   if (cachedConnection) {
     return cachedConnection;
   }
 
   if (!global.__mongoConnectionPromise) {
-    global.__mongoConnectionPromise = mongoose.connect(uri, {
+    global.__mongoConnectionPromise = mongoose.connect(resolvedUri, {
       serverSelectionTimeoutMS: connectionTimeoutMs,
     });
   }

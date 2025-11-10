@@ -97,6 +97,8 @@ The wow moment depends on managers trusting that the roster is exclusive to them
 ### Post-Review Follow-ups
 
 - 2025-11-10 – Story 1.2 [High]: Return HTTP 403 before redirecting unauthorized admissions logins so AC3’s status requirement is met (`nyu-device-roster/src/lib/auth/options.ts:95-147`).
+- 2025-11-10 – Story 1.3 [High]: Persist `AUTH_INVALID_SESSION` audit events to `sync_events` (or designated store) with route/method/IP/actor metadata (`nyu-device-roster/src/lib/auth/sessionMiddleware.ts:78-105`) — ✅ addressed 2025-11-10.
+- 2025-11-10 – Story 1.3 [Medium]: Apply `withSession` middleware (or App Router middleware) across `/api/*` handlers and document the session contract for downstream APIs (`nyu-device-roster/src/lib/auth/sessionMiddleware.ts:69-117`) — ✅ addressed 2025-11-10.
 
 ---
 

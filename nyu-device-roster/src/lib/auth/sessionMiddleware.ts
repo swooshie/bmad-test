@@ -8,8 +8,15 @@ import {
   logAuthSuccess,
   type AuthFailureLog,
 } from "@/lib/logging";
+import { recordAuthFailureEvent } from "@/lib/audit/syncEvents";
 
-export type NextRequestWithSession = NextRequest & { session: Session };
+type SessionWithManagerRole = Session & {
+  user: Session["user"] & {
+    managerRole?: "manager" | "lead";
+  };
+};
+
+export type NextRequestWithSession = NextRequest & { session: SessionWithManagerRole };
 export type SessionRouteHandler<TContext = unknown> = (
   request: NextRequestWithSession,
   context: TContext
@@ -66,6 +73,18 @@ const trackFailure = (payload: AuthFailureLog) => {
   logAuthFailure(payload);
 };
 
+const persistAndTrackFailure = async (payload: AuthFailureLog) => {
+  await recordAuthFailureEvent({
+    route: payload.route,
+    method: payload.method,
+    reason: payload.reason,
+    requestId: payload.requestId,
+    ip: payload.ip,
+    userEmail: payload.userEmail ?? null,
+  });
+  trackFailure(payload);
+};
+
 export const withSession =
   <TContext = unknown>(handler: SessionRouteHandler<TContext>) =>
   async (request: NextRequest, context: TContext) => {
@@ -76,7 +95,7 @@ export const withSession =
     const requestId = request.headers.get("x-request-id") ?? undefined;
 
     if (!session) {
-      trackFailure({
+      await persistAndTrackFailure({
         event: "AUTH_INVALID_SESSION",
         route,
         method,
@@ -91,7 +110,7 @@ export const withSession =
     }
 
     if (!session.user) {
-      trackFailure({
+      await persistAndTrackFailure({
         event: "AUTH_INVALID_SESSION",
         route,
         method,
@@ -111,7 +130,7 @@ export const withSession =
       userEmail: session.user.email ?? null,
     });
 
-    (request as NextRequestWithSession).session = session;
+    (request as NextRequestWithSession).session = session as SessionWithManagerRole;
 
     return handler(request as NextRequestWithSession, context);
   };

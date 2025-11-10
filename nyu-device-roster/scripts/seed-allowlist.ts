@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import "tsconfig-paths/register";
+import "tsconfig-paths/register.js";
 import { readFileSync } from "fs";
 import path from "path";
 import { config as loadEnv } from "dotenv";
@@ -126,7 +126,7 @@ async function main() {
     const args = process.argv.slice(2);
     const options = parseArguments(args);
 
-    const result = await upsertConfig({
+    const { config, diff } = await upsertConfig({
       allowlist: options.emails,
       devicesSheetId: options.devicesSheetId,
       collectionName: options.collectionName,
@@ -138,10 +138,11 @@ async function main() {
       {
         event: "ALLOWLIST_SEEDED",
         operatorId: options.operatorId,
-        allowlistCount: result.allowlist.length,
-        devicesSheetId: result.devicesSheetId,
-        collectionName: result.collectionName,
-        lastUpdatedAt: result.lastUpdatedAt.toISOString(),
+        allowlistCount: config.allowlist.length,
+        devicesSheetId: config.devicesSheetId,
+        collectionName: config.collectionName,
+        lastUpdatedAt: config.lastUpdatedAt.toISOString(),
+        diff,
       },
       "Allowlist configuration updated"
     );
