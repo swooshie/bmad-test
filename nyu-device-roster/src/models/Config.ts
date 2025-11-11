@@ -10,6 +10,12 @@ export interface AllowlistChange {
   source: AllowlistChangeSource;
 }
 
+export interface SyncSettings {
+  enabled: boolean;
+  intervalMinutes: number;
+  timezone: string;
+}
+
 export interface ConfigAttributes {
   allowlist: string[];
   devicesSheetId: string;
@@ -17,6 +23,7 @@ export interface ConfigAttributes {
   lastUpdatedAt: Date;
   updatedBy: string;
   changes: AllowlistChange[];
+  sync: SyncSettings;
 }
 
 const allowlistChangeSchema = new Schema<AllowlistChange>(
@@ -64,6 +71,22 @@ const configSchema = new Schema<ConfigAttributes>(
     changes: {
       type: [allowlistChangeSchema],
       default: [],
+    },
+    sync: {
+      enabled: {
+        type: Boolean,
+        default: true,
+      },
+      intervalMinutes: {
+        type: Number,
+        default: 2,
+        min: 1,
+        max: 60,
+      },
+      timezone: {
+        type: String,
+        default: "Etc/UTC",
+      },
     },
   },
   {

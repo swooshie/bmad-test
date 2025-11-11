@@ -13,7 +13,8 @@ export type SecretKey =
   | "googleClientSecret"
   | "nextAuthSecret"
   | "mongoUri"
-  | "sheetsServiceAccount";
+  | "sheetsServiceAccount"
+  | "syncSchedulerToken";
 
 export type SheetsServiceAccount = {
   type: string;
@@ -34,6 +35,7 @@ type SecretValueMap = {
   nextAuthSecret: string;
   mongoUri: string;
   sheetsServiceAccount: SheetsServiceAccount;
+  syncSchedulerToken: string;
 };
 
 type SecretSpec<TValue> = {
@@ -63,6 +65,10 @@ const SECRET_SPECS: Record<SecretKey, SecretSpec<SecretValueMap[SecretKey]>> = {
     secretIdEnv: "SECRET_NAME_SHEETS_SERVICE_ACCOUNT",
     fallbackEnv: "SHEETS_SERVICE_ACCOUNT_JSON",
     parser: (raw: string) => JSON.parse(raw) as SheetsServiceAccount,
+  },
+  syncSchedulerToken: {
+    secretIdEnv: "SECRET_NAME_SYNC_SCHEDULER_TOKEN",
+    fallbackEnv: "SYNC_SCHEDULER_TOKEN",
   },
 };
 

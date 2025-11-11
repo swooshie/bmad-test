@@ -24,6 +24,17 @@ export const configSchema = z.object({
   lastUpdatedAt: z.date(),
   updatedBy: z.string().min(1),
   changes: z.array(allowlistChangeSchema),
+  sync: z
+    .object({
+      enabled: z.boolean(),
+      intervalMinutes: z.number().int().min(1).max(60),
+      timezone: z.string().min(1),
+    })
+    .default({
+      enabled: true,
+      intervalMinutes: 2,
+      timezone: "Etc/UTC",
+    }),
 });
 
 export type ConfigSchema = z.infer<typeof configSchema>;

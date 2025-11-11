@@ -12,6 +12,7 @@ const mockLoadAllSecrets = vi.fn().mockResolvedValue({
   googleClientSecret: "client-secret",
   nextAuthSecret: "nextauth-secret",
   mongoUri: "mongodb://example",
+  syncSchedulerToken: "scheduler-token",
   sheetsServiceAccount: {
     type: "service_account",
     project_id: "demo",
@@ -58,6 +59,11 @@ const buildDocument = (allowlist: string[]) => ({
   lastUpdatedAt: new Date("2024-01-01T00:00:00Z"),
   updatedBy: "operator",
   changes: [],
+  sync: {
+    enabled: true,
+    intervalMinutes: 2,
+    timezone: "Etc/UTC",
+  },
 });
 
 describe("config helpers", () => {

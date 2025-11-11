@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "verify-sync-indexes": "tsx scripts/verify-sync-indexes.ts"
   },
   "dependencies": {
     "@google-cloud/secret-manager": "^6.1.1",
@@ -31,7 +32,10 @@
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.0.1",
+    "mongodb-memory-server": "^10.3.0",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
     "typescript": "^5",
     "vitest": "^4.0.7"
   }

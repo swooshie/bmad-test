@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import SyncStatusBanner from "@/components/SyncStatusBanner";
+
 const checklist = [
   "Sign in with your NYU admissions Google account",
   "Verify allowlist status and governance logging",
@@ -21,6 +23,10 @@ export default function Home() {
           flow. Only allowlisted managers receive a session, and unauthorized attempts
           are logged for governance review.
         </p>
+
+        <div className="mt-6">
+          <SyncStatusBanner />
+        </div>
 
         <ul className="mt-8 space-y-3 text-base text-slate-700">
           {checklist.map((item) => (

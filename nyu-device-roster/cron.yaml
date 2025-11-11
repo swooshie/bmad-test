@@ -1,0 +1,15 @@
+cron:
+  - description: "Trigger the roster ingest worker every two minutes"
+    url: /api/sync/run
+    schedule: every 2 minutes synchronized
+    timezone: Etc/UTC
+    target: default
+    retry_parameters:
+      retry_limit: 5
+      min_backoff_seconds: 30
+      max_backoff_seconds: 300
+    headers:
+      X-Appengine-Cron: "true"
+      # Replace the token placeholder with the Secret Manager reference that stores the internal
+      # scheduler credential expected by /api/sync/run.
+      X-Internal-Service-Token: "${SYNC_SCHEDULER_TOKEN}"
