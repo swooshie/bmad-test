@@ -85,6 +85,22 @@ export const logAllowlistEndpointEvent = (payload: {
   );
 };
 
+export const logAnonymizationToggle = (payload: {
+  enabled: boolean;
+  userEmail?: string | null;
+  requestId?: string;
+}) => {
+  logger.info(
+    {
+      event: "ANONYMIZATION_TOGGLED",
+      enabled: payload.enabled,
+      userEmail: payload.userEmail ?? null,
+      requestId: payload.requestId ?? null,
+    },
+    payload.enabled ? "Anonymization enabled" : "Anonymization disabled"
+  );
+};
+
 export type SecretManagerLog = {
   event: "SECRET_MANAGER_FAILURE";
   secretKey: string;
@@ -108,6 +124,110 @@ export const logConfigValidationFailure = (payload: {
       ...payload,
     },
     "Runtime configuration validation failed"
+  );
+};
+
+export type PerformanceMetricLog = {
+  event: "PERFORMANCE_METRIC";
+  metric: string;
+  value: number;
+  threshold?: number | null;
+  context?: Record<string, string | number | boolean> | undefined;
+  requestId?: string | null;
+  anonymized?: boolean;
+  timestamp: string;
+};
+
+export type FilterChipLog = {
+  event: "FILTER_CHIP_UPDATED";
+  filters: Record<string, unknown>;
+  requestId?: string | null;
+  anonymized?: boolean;
+  total?: number | null;
+};
+
+export type DeviceDrawerLog =
+  | {
+      event: "DEVICE_DRAWER_ACTION";
+      action: "EXPORT_AUDIT_SNAPSHOT" | "HANDOFF_INITIATED";
+      deviceId: string;
+      userEmail?: string | null;
+      requestId?: string | null;
+      outcome: "success" | "failure";
+      error?: string | null;
+    }
+  | {
+      event: "ANONYMIZATION_CHIP_VIEWED";
+      deviceId: string;
+      userEmail?: string | null;
+      anonymized: boolean;
+      requestId?: string | null;
+    };
+
+export const logPerformanceMetric = (payload: PerformanceMetricLog) => {
+  logger.info(
+    {
+      ...payload,
+      threshold: payload.threshold ?? null,
+      anonymized: payload.anonymized ?? false,
+    },
+    "Performance metric recorded"
+  );
+};
+
+export const logFilterChipUpdate = (payload: FilterChipLog) => {
+  logger.info(
+    {
+      ...payload,
+      anonymized: payload.anonymized ?? false,
+      total: payload.total ?? null,
+    },
+    "Filter chip state updated"
+  );
+};
+
+export const logDeviceDrawerAction = (payload: DeviceDrawerLog) => {
+  logger.info(payload, "Device drawer interaction");
+};
+
+export type IconActionLog = {
+  event: "ICON_ACTION_TRIGGERED";
+  actionId: string;
+  durationMs: number;
+  anonymized?: boolean;
+  reducedMotion?: boolean;
+  requestId?: string | null;
+  triggeredAt?: string;
+};
+
+export const logIconAction = (payload: IconActionLog) => {
+  logger.info(
+    {
+      ...payload,
+      anonymized: payload.anonymized ?? false,
+      reducedMotion: payload.reducedMotion ?? false,
+      triggeredAt: payload.triggeredAt ?? new Date().toISOString(),
+    },
+    "Icon-first action triggered"
+  );
+};
+
+export type AnonymizationPresetLog = {
+  event: "ANONYMIZATION_PRESET_CHANGED";
+  presetId: string;
+  overrides?: Record<string, boolean>;
+  anonymized: boolean;
+  userEmail?: string | null;
+  requestId?: string;
+};
+
+export const logAnonymizationPresetChange = (payload: AnonymizationPresetLog) => {
+  logger.info(
+    {
+      ...payload,
+      overrides: payload.overrides ?? {},
+    },
+    "Anonymization preset updated"
   );
 };
 

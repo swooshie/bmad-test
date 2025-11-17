@@ -2,8 +2,9 @@ import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 import connectToDatabase from "@/lib/db";
-import { ensureRuntimeConfig, RuntimeConfigError } from "@/lib/config";
+import { ensureRuntimeConfig } from "@/lib/config";
 import { SheetFetchError } from "@/lib/google-sheets";
+import { AppError, mapToAppError, serializeAppError } from "@/lib/errors/app-error";
 import { logger } from "@/lib/logging";
 import {
   markSyncError,
@@ -18,24 +19,14 @@ const CRON_HEADER = "x-appengine-cron";
 const TOKEN_HEADER = "x-internal-service-token";
 const SCHEDULER_ACTOR = "scheduler";
 
-const errorResponse = (status: number, code: string, message: string) =>
+const errorResponse = (error: AppError) =>
   NextResponse.json(
     {
       data: null,
-      error: { code, message },
+      error: serializeAppError(error),
     },
-    { status }
+    { status: error.httpStatus }
   );
-
-const mapSyncError = (error: unknown) => {
-  if (error instanceof SheetFetchError) {
-    return { code: error.code, message: error.message };
-  }
-  if (error instanceof Error) {
-    return { code: "SYNC_FAILED", message: error.message };
-  }
-  return { code: "SYNC_FAILED", message: "Unknown sync failure" };
-};
 
 const recordScheduledSkip = async (reason: string, metadata?: Record<string, unknown>) => {
   await connectToDatabase();
@@ -57,8 +48,7 @@ const recordFailureEvent = async (payload: {
   runId: string;
   requestId?: string;
   sheetId: string;
-  errorCode: string;
-  message: string;
+  error: AppError;
 }) => {
   await connectToDatabase();
   await SyncEventModel.create({
@@ -71,8 +61,9 @@ const recordFailureEvent = async (payload: {
       status: "failed",
       runId: payload.runId,
       sheetId: payload.sheetId,
-      errorCode: payload.errorCode,
-      message: payload.message,
+      errorCode: payload.error.code,
+      recommendation: payload.error.recommendation,
+      referenceId: payload.error.referenceId,
     },
   });
 };
@@ -86,51 +77,55 @@ export const POST = async (request: NextRequest) => {
   try {
     runtimeConfig = await ensureRuntimeConfig();
   } catch (error) {
-    const message =
-      error instanceof RuntimeConfigError
-        ? error.message
-        : "Unable to load runtime configuration";
+    const mapped = mapToAppError(error, "CONFIG_MISSING");
     logger.error(
-      { event: "CRON_SYNC_CONFIG_ERROR", requestId, error },
+      { event: "CRON_SYNC_CONFIG_ERROR", requestId, referenceId: mapped.referenceId, error },
       "Scheduled sync failed to load configuration"
     );
-    return errorResponse(503, "CONFIG_MISSING", message);
+    return errorResponse(mapped);
   }
 
   const schedulerToken = runtimeConfig.secrets.syncSchedulerToken;
   if (!schedulerToken) {
+    const error = new AppError({
+      code: "CONFIG_MISSING",
+      message: "Sync scheduler token is not configured",
+      httpStatus: 503,
+    });
     logger.error(
-      { event: "CRON_SYNC_TOKEN_MISSING", requestId },
+      { event: "CRON_SYNC_TOKEN_MISSING", requestId, referenceId: error.referenceId },
       "Sync scheduler secret was not configured"
     );
-    return errorResponse(
-      503,
-      "SCHEDULER_TOKEN_MISSING",
-      "Sync scheduler token is not configured"
-    );
+    return errorResponse(error);
   }
 
   const cronHeader = request.headers.get(CRON_HEADER);
   const providedToken = request.headers.get(TOKEN_HEADER);
   if (cronHeader !== "true" || !providedToken || providedToken !== schedulerToken) {
+    const error = new AppError({
+      code: "UNAUTHORIZED_CRON",
+      message: "Scheduler headers were missing or invalid",
+      httpStatus: 401,
+    });
     logger.warn(
-      { event: "CRON_SYNC_UNAUTHORIZED", requestId },
+      { event: "CRON_SYNC_UNAUTHORIZED", requestId, referenceId: error.referenceId },
       "Rejected scheduled sync: missing or invalid scheduler headers"
     );
-    return errorResponse(401, "UNAUTHORIZED_CRON", "Scheduler headers were missing or invalid");
+    return errorResponse(error);
   }
 
   const sheetId = runtimeConfig.config.devicesSheetId;
   if (!sheetId) {
+    const error = new AppError({
+      code: "INVALID_SYNC_CONFIGURATION",
+      message: "devicesSheetId was not defined. Seed configuration before syncing.",
+      httpStatus: 503,
+    });
     logger.error(
-      { event: "CRON_SYNC_SHEET_MISSING", requestId },
+      { event: "CRON_SYNC_SHEET_MISSING", requestId, referenceId: error.referenceId },
       "devicesSheetId missing from configuration"
     );
-    return errorResponse(
-      503,
-      "SHEET_ID_MISSING",
-      "devicesSheetId was not defined. Seed configuration before syncing."
-    );
+    return errorResponse(error);
   }
 
   const syncSettings = runtimeConfig.config.sync ?? {
@@ -254,7 +249,10 @@ export const POST = async (request: NextRequest) => {
         },
       });
     } catch (error) {
-      const mapped = mapSyncError(error);
+      const mapped =
+        error instanceof SheetFetchError
+          ? mapToAppError(error)
+          : mapToAppError(error, "MONGO_WRITE_FAILED");
       logger.error(
         {
           event: "CRON_SYNC_FAILURE",
@@ -262,6 +260,7 @@ export const POST = async (request: NextRequest) => {
           sheetId,
           requestId,
           errorCode: mapped.code,
+          referenceId: mapped.referenceId,
           error,
         },
         "Scheduled sync run failed"
@@ -270,13 +269,14 @@ export const POST = async (request: NextRequest) => {
         runId,
         errorCode: mapped.code,
         message: mapped.message,
+        recommendation: mapped.recommendation,
+        referenceId: mapped.referenceId,
       });
       await recordFailureEvent({
         runId,
         requestId,
         sheetId,
-        errorCode: mapped.code,
-        message: mapped.message,
+        error: mapped,
       });
     } finally {
       try {

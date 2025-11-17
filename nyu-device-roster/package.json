@@ -9,10 +9,13 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify-sync-indexes": "tsx scripts/verify-sync-indexes.ts"
+    "verify-sync-indexes": "tsx scripts/verify-sync-indexes.ts",
+    "reset-sync": "tsx scripts/reset-sync.ts",
+    "perf:lighthouse": "node tests/performance/lighthouse.ci.mjs"
   },
   "dependencies": {
     "@google-cloud/secret-manager": "^6.1.1",
+    "@tanstack/react-query": "^5.90.10",
     "dotenv": "^17.2.3",
     "mongoose": "^8.19.3",
     "next": "16.0.1",
@@ -24,14 +27,20 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.0.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "^4.0.7",
     "babel-plugin-react-compiler": "1.0.0",
+    "chrome-launcher": "^0.15.2",
     "eslint": "^9",
     "eslint-config-next": "16.0.1",
+    "jsdom": "^26.1.0",
+    "lighthouse": "^12.1.0",
     "mongodb-memory-server": "^10.3.0",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",

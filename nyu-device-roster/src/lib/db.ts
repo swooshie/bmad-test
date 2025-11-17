@@ -3,7 +3,6 @@ import mongoose from "mongoose";
 import { getMongoConnectionUri } from "@/lib/secrets";
 
 declare global {
-  // eslint-disable-next-line no-var, vars-on-top
   var __mongoConnectionPromise: Promise<typeof mongoose> | null | undefined;
 }
 

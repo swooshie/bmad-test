@@ -165,6 +165,11 @@ describe("POST /api/sync/run", () => {
     );
 
     expect(response.status).toBe(401);
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      data: null,
+      error: expect.objectContaining({ code: "UNAUTHORIZED_CRON" }),
+    });
     expect(markSyncRunning).not.toHaveBeenCalled();
     expect(mockRunDeviceSync).not.toHaveBeenCalled();
   });
@@ -263,7 +268,8 @@ describe("POST /api/sync/run", () => {
     expect(markSyncError).toHaveBeenCalledWith(
       expect.objectContaining({
         runId: "run-mock-id",
-        errorCode: "SYNC_FAILED",
+        errorCode: "MONGO_WRITE_FAILED",
+        recommendation: expect.stringContaining("Mongo"),
       })
     );
     expect(mockCreate).toHaveBeenCalledWith(
@@ -271,6 +277,7 @@ describe("POST /api/sync/run", () => {
         metadata: expect.objectContaining({
           status: "failed",
           runId: "run-mock-id",
+          errorCode: "MONGO_WRITE_FAILED",
         }),
       })
     );

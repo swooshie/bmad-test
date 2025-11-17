@@ -45,6 +45,12 @@ export default function Home() {
             Sign in with Google
           </Link>
           <Link
+            href="/dashboard"
+            className="flex h-12 flex-1 items-center justify-center rounded-xl border border-slate-200 text-base font-semibold text-slate-900 transition hover:bg-slate-50"
+          >
+            Open dashboard
+          </Link>
+          <Link
             href="/access-denied"
             className="flex h-12 flex-1 items-center justify-center rounded-xl border border-slate-200 text-base font-semibold text-slate-900 transition hover:bg-slate-50"
           >

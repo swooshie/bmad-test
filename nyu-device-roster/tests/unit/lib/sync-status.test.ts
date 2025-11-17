@@ -56,12 +56,16 @@ describe("sync status store", () => {
       runId: "run-2",
       errorCode: "SYNC_TIMEOUT",
       message: "Sync exceeded SLA",
+      recommendation: "Retry later",
+      referenceId: "ref-123",
     });
 
     expect(getSyncStatus()).toMatchObject({
       state: "error",
       runId: "run-2",
       errorCode: "SYNC_TIMEOUT",
+      recommendation: "Retry later",
+      referenceId: "ref-123",
     });
     expect(spy).toHaveBeenCalledTimes(2); // idle + error
   });

@@ -20,12 +20,14 @@ export type SyncStatusState =
       };
     }
   | {
-    state: "error";
-    runId: string;
-    completedAt: string;
-    errorCode: string;
-    message: string;
-  };
+      state: "error";
+      runId: string;
+      completedAt: string;
+      errorCode: string;
+      message: string;
+      recommendation?: string;
+      referenceId?: string;
+    };
 
 export type SyncStatusSubscriber = (state: SyncStatusState) => void;
 
@@ -80,6 +82,8 @@ export const markSyncError = (payload: {
   runId: string;
   errorCode: string;
   message: string;
+  recommendation?: string;
+  referenceId?: string;
 }) => {
   statusSnapshot = {
     state: "error",
@@ -87,6 +91,8 @@ export const markSyncError = (payload: {
     completedAt: new Date().toISOString(),
     errorCode: payload.errorCode,
     message: payload.message,
+    recommendation: payload.recommendation,
+    referenceId: payload.referenceId,
   };
   notify();
 };

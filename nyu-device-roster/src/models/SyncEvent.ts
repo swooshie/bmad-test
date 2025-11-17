@@ -6,7 +6,14 @@ export type SyncEventType =
   | "CUSTOM"
   | "CONFIG_VALIDATION"
   | "ALLOWLIST_CHANGE"
-  | "ALLOWLIST_ACCESS_DENIED";
+  | "ALLOWLIST_ACCESS_DENIED"
+  | "GOVERNANCE_EXPORT"
+  | "ANONYMIZATION_TOGGLED"
+  | "FILTER_CHIP_UPDATED"
+  | "ICON_ACTION_TRIGGERED"
+  | "DEVICE_DRAWER_ACTION"
+  | "DEVICE_HANDOFF_INITIATED"
+  | "DEVICE_AUDIT_EXPORT";
 
 export interface SyncEventAttributes {
   eventType: SyncEventType;
@@ -25,14 +32,18 @@ const syncEventSchema = new Schema<SyncEventAttributes>(
     eventType: {
       type: String,
       required: true,
-      enum: [
-        "AUTH_INVALID_SESSION",
-        "SYNC_RUN",
-        "CUSTOM",
-        "CONFIG_VALIDATION",
-        "ALLOWLIST_CHANGE",
-        "ALLOWLIST_ACCESS_DENIED",
-      ],
+    enum: [
+      "AUTH_INVALID_SESSION",
+      "SYNC_RUN",
+      "CUSTOM",
+      "CONFIG_VALIDATION",
+      "ALLOWLIST_CHANGE",
+      "ALLOWLIST_ACCESS_DENIED",
+      "GOVERNANCE_EXPORT",
+      "ANONYMIZATION_TOGGLED",
+      "FILTER_CHIP_UPDATED",
+      "ICON_ACTION_TRIGGERED",
+    ],
     },
     route: { type: String, required: true },
     method: { type: String, required: true },

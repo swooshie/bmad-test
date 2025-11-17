@@ -1,0 +1,24 @@
+[
+  {
+    "deviceId": "demo-device-001",
+    "sheetId": "demo-sheet",
+    "assignedTo": "Demo Manager",
+    "status": "Assigned",
+    "condition": "Operational",
+    "offboardingStatus": null,
+    "lastSeen": "2024-11-01T00:00:00.000Z",
+    "lastSyncedAt": "2024-11-01T00:00:00.000Z",
+    "contentHash": "baseline-hash-001"
+  },
+  {
+    "deviceId": "demo-device-002",
+    "sheetId": "demo-sheet",
+    "assignedTo": "Backup Owner",
+    "status": "Available",
+    "condition": "Operational",
+    "offboardingStatus": null,
+    "lastSeen": "2024-11-01T00:00:00.000Z",
+    "lastSyncedAt": "2024-11-01T00:00:00.000Z",
+    "contentHash": "baseline-hash-002"
+  }
+]

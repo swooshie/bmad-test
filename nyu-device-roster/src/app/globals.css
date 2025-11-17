@@ -3,6 +3,11 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --anim-hover-ms: 120ms;
+  --anim-press-ms: 90ms;
+  --anim-release-ms: 150ms;
+  --anim-ease-primary: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --anim-ease-exit: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @theme inline {
@@ -23,4 +28,69 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.icon-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+  background: color-mix(in srgb, var(--foreground) 4%, transparent);
+  color: inherit;
+  transition:
+    transform var(--anim-release-ms) var(--anim-ease-primary),
+    box-shadow var(--anim-release-ms) var(--anim-ease-primary),
+    border-color var(--anim-hover-ms) var(--anim-ease-primary),
+    background-color var(--anim-hover-ms) var(--anim-ease-primary);
+}
+
+.icon-action:hover,
+.icon-action:focus-visible {
+  border-color: color-mix(in srgb, var(--foreground) 35%, transparent);
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+
+.icon-action:active {
+  transform: translateY(1px) scale(0.99);
+  transition-duration: var(--anim-press-ms);
+}
+
+.icon-action:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--foreground) 40%, transparent);
+  outline-offset: 4px;
+}
+
+.icon-action[data-reduced-motion="true"] {
+  transition: none;
+}
+
+.icon-action__label {
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition:
+    opacity var(--anim-hover-ms) var(--anim-ease-primary),
+    transform var(--anim-hover-ms) var(--anim-ease-primary),
+    max-width var(--anim-hover-ms) linear;
+}
+
+.icon-action:hover .icon-action__label,
+.icon-action:focus-visible .icon-action__label,
+.icon-action[data-expanded="true"] .icon-action__label {
+  max-width: 220px;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.icon-action[data-reduced-motion="true"] .icon-action__label {
+  max-width: 240px;
+  opacity: 1;
+  transform: none;
+  transition: none;
 }

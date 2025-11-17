@@ -7,7 +7,6 @@ const loggingSpies = vi.hoisted(() => ({
   debug: vi.fn(),
 }));
 const loggerWarn = loggingSpies.warn;
-const loggerError = loggingSpies.error;
 vi.mock("@/lib/logging", () => ({
   logger: loggingSpies,
 }));
@@ -41,9 +40,11 @@ describe("Secret Manager helpers", () => {
     delete process.env.SECRET_NAME_NEXTAUTH_SECRET;
     delete process.env.SECRET_NAME_SHEETS_SERVICE_ACCOUNT;
     delete process.env.SECRET_NAME_MONGODB_URI;
+    delete process.env.SECRET_NAME_SYNC_SCHEDULER_TOKEN;
     delete process.env.MONGODB_URI;
     delete process.env.GOOGLE_CLIENT_SECRET;
     delete process.env.NEXTAUTH_SECRET;
+    delete process.env.SYNC_SCHEDULER_TOKEN;
     delete process.env.SHEETS_SERVICE_ACCOUNT_JSON;
     delete process.env.SHEETS_SERVICE_ACCOUNT_SAMPLE_PATH;
   });
@@ -133,6 +134,8 @@ describe("Secret Manager helpers", () => {
     process.env.SECRET_NAME_MONGODB_URI = "projects/demo/secrets/mongodb-uri";
     process.env.SECRET_NAME_SHEETS_SERVICE_ACCOUNT =
       "projects/demo/secrets/sheets-service-account";
+    process.env.SECRET_NAME_SYNC_SCHEDULER_TOKEN =
+      "projects/demo/secrets/sync-scheduler-token";
 
     accessSecretVersion
       .mockResolvedValueOnce([
@@ -164,13 +167,17 @@ describe("Secret Manager helpers", () => {
             ),
           },
         },
+      ])
+      .mockResolvedValueOnce([
+        { name: "version", payload: { data: Buffer.from("scheduler-token") } },
       ]);
 
     const secrets = await loadAllSecrets();
 
     expect(secrets.googleClientId).toBe("client-id");
     expect(secrets.sheetsServiceAccount.project_id).toBe("demo");
-    expect(accessSecretVersion).toHaveBeenCalledTimes(5);
+    expect(secrets.syncSchedulerToken).toBe("scheduler-token");
+    expect(accessSecretVersion).toHaveBeenCalledTimes(6);
   });
 
   it("falls back to sample sheets service account file for local development", async () => {
@@ -178,8 +185,10 @@ describe("Secret Manager helpers", () => {
     process.env.GOOGLE_CLIENT_SECRET = "client-secret";
     process.env.NEXTAUTH_SECRET = "nextauth-secret";
     process.env.MONGODB_URI = "mongodb://example";
+    process.env.SYNC_SCHEDULER_TOKEN = "local-scheduler-token";
     delete process.env.SHEETS_SERVICE_ACCOUNT_JSON;
     delete process.env.SECRET_NAME_SHEETS_SERVICE_ACCOUNT;
+    delete process.env.SECRET_NAME_SYNC_SCHEDULER_TOKEN;
 
     process.env.SHEETS_SERVICE_ACCOUNT_SAMPLE_PATH = path.resolve(
       process.cwd(),

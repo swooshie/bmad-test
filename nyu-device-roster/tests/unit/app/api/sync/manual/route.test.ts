@@ -20,6 +20,13 @@ vi.mock("@/workers/sync", () => ({
   runDeviceSync: mockRunDeviceSync,
 }));
 
+const connectToDatabase = vi.fn().mockResolvedValue(undefined);
+
+vi.mock("@/lib/db", () => ({
+  __esModule: true,
+  default: connectToDatabase,
+}));
+
 const markSyncRunning = vi.fn();
 const markSyncSuccess = vi.fn();
 const markSyncError = vi.fn();
@@ -30,11 +37,22 @@ vi.mock("@/lib/sync-status", () => ({
   markSyncError,
 }));
 
+const syncEventCreate = vi.fn().mockResolvedValue(undefined);
+
+vi.mock("@/models/SyncEvent", () => ({
+  __esModule: true,
+  default: {
+    create: syncEventCreate,
+  },
+}));
+
 const loggerError = vi.fn();
+const loggerInfo = vi.fn();
 
 vi.mock("@/lib/logging", () => ({
   logger: {
     error: loggerError,
+    info: loggerInfo,
   },
 }));
 
@@ -136,10 +154,20 @@ describe("POST /api/sync/manual", () => {
     expect(response.status).toBe(202);
 
     await Promise.resolve();
+    await Promise.resolve();
     expect(markSyncError).toHaveBeenCalledWith(
       expect.objectContaining({
         runId: "run-mock-id",
-        errorCode: "RATE_LIMIT",
+        errorCode: "SHEETS_RATE_LIMIT",
+        recommendation: expect.stringContaining("cadence"),
+      })
+    );
+    expect(syncEventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          status: "failed",
+          errorCode: "SHEETS_RATE_LIMIT",
+        }),
       })
     );
   });
@@ -161,5 +189,30 @@ describe("POST /api/sync/manual", () => {
     });
     expect(markSyncRunning).not.toHaveBeenCalled();
     expect(mockRunDeviceSync).not.toHaveBeenCalled();
+  });
+
+  it("logs manual trigger attempts for observability", async () => {
+    mockRunDeviceSync.mockResolvedValue({
+      upsert: { added: 0, updated: 0, unchanged: 0, durationMs: 100, runId: "run-mock-id", anomalies: [] },
+      sheetId: "sheet-123",
+      rowCount: 0,
+      skipped: 0,
+      anomalies: [],
+      durationMs: 100,
+    });
+
+    const { POST } = await import("@/app/api/sync/manual/route");
+    const response = await POST(buildRequest() as never);
+
+    expect(response.status).toBe(202);
+    await Promise.resolve();
+    expect(loggerInfo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "MANUAL_SYNC_TRIGGERED",
+        sheetId: "sheet-123",
+        requestedBy: "lead@nyu.edu",
+      }),
+      expect.stringContaining("Manual sync requested")
+    );
   });
 });

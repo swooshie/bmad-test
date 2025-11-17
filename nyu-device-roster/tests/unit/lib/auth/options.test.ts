@@ -1,3 +1,4 @@
+import type { AuthOptions } from "next-auth";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const googleProviderSpy = vi.fn().mockReturnValue({
@@ -65,6 +66,11 @@ vi.mock("@/lib/logging", () => {
 
 import { headers as mockedHeaders } from "next/headers";
 
+type CallbackOptions = NonNullable<AuthOptions["callbacks"]>;
+type SignInCallbackArgs = Parameters<NonNullable<CallbackOptions["signIn"]>>[0];
+type SessionCallbackArgs = Parameters<NonNullable<CallbackOptions["session"]>>[0];
+type JwtCallbackArgs = Parameters<NonNullable<CallbackOptions["jwt"]>>[0];
+
 const mockRequestHeaders = (overrides: Record<string, string> = {}) => {
   const defaults = {
     "x-forwarded-for": "203.0.113.1",
@@ -105,7 +111,7 @@ describe("NextAuth allowlist enforcement", () => {
     const signIn = authOptions.callbacks?.signIn;
     const { logAllowlistRejection } = await import("@/lib/logging");
 
-    const result = await signIn?.({ user: { email: undefined } } as any);
+    const result = await signIn?.({ user: { email: undefined } } as SignInCallbackArgs);
 
     expect(result).toBe(false);
     expect(logAllowlistRejection).toHaveBeenCalledWith(
@@ -121,7 +127,7 @@ describe("NextAuth allowlist enforcement", () => {
     const signIn = authOptions.callbacks?.signIn;
     const { logAllowlistRejection } = await import("@/lib/logging");
 
-    const result = await signIn?.({ user: { email: "user@example.com" } } as any);
+    const result = await signIn?.({ user: { email: "user@example.com" } } as SignInCallbackArgs);
 
     expect(result).toBe(false);
     expect(logAllowlistRejection).toHaveBeenCalledWith(
@@ -140,7 +146,7 @@ describe("NextAuth allowlist enforcement", () => {
     const signIn = authOptions.callbacks?.signIn;
     const { logAllowlistRejection } = await import("@/lib/logging");
 
-    const result = await signIn?.({ user: { email: "manager@nyu.edu" } } as any);
+    const result = await signIn?.({ user: { email: "manager@nyu.edu" } } as SignInCallbackArgs);
 
     expect(result).toBe(false);
     expect(loadConfig).toHaveBeenCalledTimes(1);
@@ -163,7 +169,7 @@ describe("NextAuth allowlist enforcement", () => {
     const signIn = authOptions.callbacks?.signIn;
     const { logAllowlistRejection } = await import("@/lib/logging");
 
-    const result = await signIn?.({ user: { email: "manager@nyu.edu" } } as any);
+    const result = await signIn?.({ user: { email: "manager@nyu.edu" } } as SignInCallbackArgs);
 
     expect(result).toBe(false);
     expect(logAllowlistRejection).toHaveBeenCalledWith(
@@ -183,7 +189,7 @@ describe("NextAuth allowlist enforcement", () => {
     const signIn = authOptions.callbacks?.signIn;
     const { logAllowlistAdmit } = await import("@/lib/logging");
 
-    const result = await signIn?.({ user: { email: "Manager@Nyu.edu" } } as any);
+    const result = await signIn?.({ user: { email: "Manager@Nyu.edu" } } as SignInCallbackArgs);
 
     expect(result).toBe(true);
     expect(logAllowlistAdmit).toHaveBeenCalledWith(
@@ -214,9 +220,9 @@ describe("NextAuth allowlist enforcement", () => {
     const sessionCallback = authOptions.callbacks?.session;
 
     const sessionResult = await sessionCallback?.({
-      session: { user: { email: "Original@Email" } } as any,
-      token: { email: "Manager@NYU.edu" } as any,
-    });
+      session: { user: { email: "Original@Email" } },
+      token: { email: "Manager@NYU.edu" },
+    } as SessionCallbackArgs);
 
     expect(sessionResult?.user?.email).toBe("manager@nyu.edu");
     expect((sessionResult?.user as Record<string, unknown>)?.role).toBe(
@@ -230,8 +236,8 @@ describe("NextAuth allowlist enforcement", () => {
 
     const token = await jwtCallback?.({
       token: {},
-      user: { email: "Manager@NYU.edu" } as any,
-    } as any);
+      user: { email: "Manager@NYU.edu" },
+    } as JwtCallbackArgs);
 
     expect(token?.email).toBe("manager@nyu.edu");
   });

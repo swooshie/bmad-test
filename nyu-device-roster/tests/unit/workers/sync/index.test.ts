@@ -20,7 +20,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 const mockDeviceFindLean = vi.fn();
-const mockDeviceFind = vi.fn(() => ({ lean: mockDeviceFindLean }));
+const mockDeviceFind = vi.fn(() => ({ lean: mockDeviceFindLean, session: vi.fn().mockReturnThis() }));
 const mockDeviceBulkWrite = vi.fn();
 
 vi.mock("@/models/Device", () => ({
@@ -39,6 +39,29 @@ vi.mock("@/models/SyncEvent", () => ({
     create: mockSyncEventCreate,
   },
 }));
+
+const mockWithTransaction = vi.fn(async (fn: () => Promise<void>) => {
+  await fn();
+});
+const mockEndSession = vi.fn();
+const mockStartSession = vi.fn(async () => ({
+  withTransaction: mockWithTransaction,
+  endSession: mockEndSession,
+}));
+
+vi.mock("mongoose", async () => {
+  const actual = (await vi.importActual<typeof import("mongoose")>("mongoose")) as typeof import("mongoose");
+  const mockedDefault = (actual as typeof import("mongoose") & {
+    default?: typeof import("mongoose");
+  }).default ?? actual;
+  mockedDefault.startSession = mockStartSession;
+  return {
+    ...actual,
+    default: mockedDefault,
+    startSession: mockStartSession,
+    models: actual.models ?? mockedDefault.models,
+  };
+});
 
 vi.mock("@/lib/logging", () => ({
   logger: {

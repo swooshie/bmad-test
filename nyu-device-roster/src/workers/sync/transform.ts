@@ -6,10 +6,12 @@ import {
   type DeviceDocumentSchema,
 } from "@/schemas/device";
 
-const HEADER_ALIASES: Record<
+type SimpleDeviceField = Exclude<
   keyof Omit<DeviceDocumentSchema, "lastSyncedAt">,
-  string[]
-> = {
+  "offboardingMetadata"
+>;
+
+const HEADER_ALIASES: Record<SimpleDeviceField, string[]> = {
   deviceId: ["deviceid", "device_id", "device id"],
   sheetId: ["sheetid", "sheet_id", "sheet id"],
   assignedTo: ["assignedto", "assigned_to", "assigned to"],
@@ -17,7 +19,19 @@ const HEADER_ALIASES: Record<
   condition: ["condition"],
   offboardingStatus: ["offboardingstatus", "offboarding_status", "offboarding status"],
   lastSeen: ["lastseen", "last_seen", "last seen"],
+  lastTransferNotes: ["lasttransfernotes", "last_transfer_notes", "last transfer notes"],
 };
+
+const OFFBOARDING_METADATA_ALIASES = {
+  lastActor: ["offboardingactor", "offboarding_actor", "offboarding actor", "transfer actor"],
+  lastAction: ["offboardingaction", "offboarding_action", "offboarding action", "transfer action"],
+  lastTransferAt: [
+    "offboardingtimestamp",
+    "offboarding_timestamp",
+    "offboarding timestamp",
+    "transfer timestamp",
+  ],
+} as const;
 
 const toLowerKeyMap = (row: TypedRow) => {
   const entries = Object.entries(row).map(([key, value]) => [key.toLowerCase(), value]);
@@ -39,8 +53,18 @@ const createContentHash = (payload: DeviceDocumentSchema): string => {
     status: payload.status.toLowerCase(),
     condition: payload.condition.toLowerCase(),
     offboardingStatus: payload.offboardingStatus?.toLowerCase() ?? null,
+    lastTransferNotes: payload.lastTransferNotes?.toLowerCase() ?? null,
     lastSeen: payload.lastSeen ? payload.lastSeen.toISOString() : null,
     sheetId: payload.sheetId.toLowerCase(),
+    offboardingMetadata: payload.offboardingMetadata
+      ? {
+          lastActor: payload.offboardingMetadata.lastActor?.toLowerCase() ?? null,
+          lastAction: payload.offboardingMetadata.lastAction?.toLowerCase() ?? null,
+          lastTransferAt: payload.offboardingMetadata.lastTransferAt
+            ? payload.offboardingMetadata.lastTransferAt.toISOString()
+            : null,
+        }
+      : null,
   };
   return createHash("sha256").update(JSON.stringify(stablePayload)).digest("hex");
 };
@@ -80,6 +104,17 @@ const normalizeAssignedTo = (value: string | undefined) =>
 
 const normalizeCondition = (value: string | undefined) =>
   value ? titleCase(value) : "Unknown";
+
+const coerceDate = (value: TypedRow[keyof TypedRow] | undefined | null): Date | undefined => {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? undefined : value;
+  }
+  const candidate = new Date(typeof value === "number" ? value : String(value));
+  return Number.isNaN(candidate.getTime()) ? undefined : candidate;
+};
 
 export type NormalizedDevice = DeviceDocumentSchema & {
   contentHash: string;
@@ -135,18 +170,28 @@ export const normalizeSheetRows = (
     const lastSeenRaw =
       extractField(valueMap, HEADER_ALIASES.lastSeen) ?? row.lastSeen ?? null;
 
-    const lastSeen =
-      lastSeenRaw === null || lastSeenRaw === undefined
-        ? undefined
-        : (() => {
-            if (lastSeenRaw instanceof Date) {
-              return Number.isNaN(lastSeenRaw.getTime()) ? undefined : lastSeenRaw;
-            }
-            const candidate = new Date(
-              typeof lastSeenRaw === "number" ? lastSeenRaw : String(lastSeenRaw)
-            );
-            return Number.isNaN(candidate.getTime()) ? undefined : candidate;
-          })();
+    const lastSeen = coerceDate(lastSeenRaw);
+    const lastTransferNotes =
+      coerceString(extractField(valueMap, HEADER_ALIASES.lastTransferNotes)) ??
+      coerceString(row.lastTransferNotes);
+
+    const offboardingActor =
+      coerceString(extractField(valueMap, OFFBOARDING_METADATA_ALIASES.lastActor)) ??
+      coerceString(row.offboardingActor);
+    const offboardingAction =
+      coerceString(extractField(valueMap, OFFBOARDING_METADATA_ALIASES.lastAction)) ??
+      coerceString(row.offboardingAction);
+    const offboardingTimestampRaw =
+      extractField(valueMap, OFFBOARDING_METADATA_ALIASES.lastTransferAt) ??
+      row.offboardingTimestamp;
+    const offboardingMetadata =
+      offboardingActor || offboardingAction || offboardingTimestampRaw
+        ? {
+            lastActor: offboardingActor,
+            lastAction: offboardingAction,
+            lastTransferAt: coerceDate(offboardingTimestampRaw),
+          }
+        : undefined;
 
     const payload: DeviceDocumentSchema = {
       deviceId,
@@ -156,6 +201,8 @@ export const normalizeSheetRows = (
       condition,
       offboardingStatus: offboardingStatus ?? undefined,
       lastSeen,
+      offboardingMetadata,
+      lastTransferNotes,
       lastSyncedAt: now,
     };
 

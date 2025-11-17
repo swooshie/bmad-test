@@ -2,6 +2,7 @@ import connectToDatabase from "@/lib/db";
 import SyncEventModel, { type SyncEventType } from "@/models/SyncEvent";
 import logger from "@/lib/logging";
 import type { AllowlistDiff } from "@/lib/config";
+import type { DeviceGridQueryFilters } from "@/lib/devices/grid-query";
 
 export type AuthFailureAuditPayload = {
   route: string;
@@ -95,5 +96,125 @@ export const recordAllowlistAccessDeniedEvent = async (payload: {
     userEmail: payload.userEmail,
     requestId: payload.requestId,
     ip: payload.ip,
+  });
+};
+
+export const recordGovernanceExportEvent = async (payload: {
+  route: string;
+  method: string;
+  userEmail: string | null;
+  requestId?: string;
+  ip?: string;
+  flaggedCount: number;
+  totalCount: number;
+  countsByStatus: Record<string, number>;
+  filters: DeviceGridQueryFilters;
+}): Promise<void> => {
+  await connectToDatabase();
+
+  await SyncEventModel.create({
+    eventType: "GOVERNANCE_EXPORT" as SyncEventType,
+    route: payload.route,
+    method: payload.method,
+    reason: "GOVERNANCE_EXPORT_TRIGGERED",
+    userEmail: payload.userEmail,
+    requestId: payload.requestId,
+    ip: payload.ip,
+    metadata: {
+      flaggedCount: payload.flaggedCount,
+      totalCount: payload.totalCount,
+      countsByStatus: payload.countsByStatus,
+      filters: payload.filters,
+    },
+  });
+};
+
+export const recordAnonymizationToggleEvent = async (payload: {
+  route: string;
+  method: string;
+  enabled: boolean;
+  userEmail: string | null;
+  requestId?: string;
+  ip?: string;
+}): Promise<void> => {
+  await connectToDatabase();
+
+  await SyncEventModel.create({
+    eventType: "ANONYMIZATION_TOGGLED" as SyncEventType,
+    route: payload.route,
+    method: payload.method,
+    reason: payload.enabled ? "ANONYMIZATION_ENABLED" : "ANONYMIZATION_DISABLED",
+    userEmail: payload.userEmail,
+    requestId: payload.requestId,
+    ip: payload.ip,
+    metadata: {
+      enabled: payload.enabled,
+    },
+  });
+};
+
+export const recordFilterChipUpdatedEvent = async (payload: {
+  route: string;
+  method: string;
+  filters: DeviceGridQueryFilters;
+  total?: number | null;
+  requestId?: string;
+  userEmail?: string | null;
+}): Promise<void> => {
+  try {
+    await connectToDatabase();
+  } catch (error) {
+    logger.error(
+      { event: "FILTER_CHIP_AUDIT_FAILED", error, filters: payload.filters },
+      "Unable to persist filter chip update"
+    );
+    return;
+  }
+
+  await SyncEventModel.create({
+    eventType: "FILTER_CHIP_UPDATED" as SyncEventType,
+    route: payload.route,
+    method: payload.method,
+    reason: "FILTERS_APPLIED",
+    requestId: payload.requestId,
+    userEmail: payload.userEmail ?? null,
+    metadata: {
+      filters: payload.filters,
+      total: payload.total ?? null,
+    },
+  });
+};
+
+export const recordIconActionEvent = async (payload: {
+  actionId: string;
+  durationMs: number;
+  anonymized?: boolean;
+  reducedMotion?: boolean;
+  requestId?: string;
+  route: string;
+}): Promise<void> => {
+  try {
+    await connectToDatabase();
+  } catch (error) {
+    logger.error(
+      { event: "ICON_ACTION_AUDIT_FAILED", actionId: payload.actionId, error },
+      "Unable to persist icon action event"
+    );
+    return;
+  }
+
+  await SyncEventModel.create({
+    eventType: "ICON_ACTION_TRIGGERED",
+    route: payload.route,
+    method: "POST",
+    reason: "ICON_ACTION_TRIGGERED",
+    requestId: payload.requestId,
+    metadata: {
+      actionId: payload.actionId,
+      durationMs: payload.durationMs,
+      anonymized: payload.anonymized ?? false,
+      reducedMotion: payload.reducedMotion ?? false,
+      recordedAt: new Date().toISOString(),
+    },
   });
 };
