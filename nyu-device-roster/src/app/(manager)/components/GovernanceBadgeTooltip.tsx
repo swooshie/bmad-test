@@ -9,7 +9,8 @@ import { API_ROUTES } from "@/lib/routes";
 type DeviceDetailPayload = {
   data: {
     device: {
-      deviceId: string;
+      serial: string;
+      legacyDeviceId: string | null;
       governanceCue: GovernanceCue;
       lastTransferNotes: string | null;
       offboardingMetadata?: SerializedOffboardingMetadata;
@@ -22,12 +23,12 @@ type DeviceDetailPayload = {
 };
 
 type GovernanceBadgeTooltipProps = {
-  deviceId: string;
+  serial: string;
   cueSummary: string;
   badge: React.ReactNode;
 };
 
-export const GovernanceBadgeTooltip = ({ deviceId, cueSummary, badge }: GovernanceBadgeTooltipProps) => {
+export const GovernanceBadgeTooltip = ({ serial, cueSummary, badge }: GovernanceBadgeTooltipProps) => {
   const tooltipId = useId();
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -36,7 +37,7 @@ export const GovernanceBadgeTooltip = ({ deviceId, cueSummary, badge }: Governan
   const fetchDetails = useCallback(async () => {
     setStatus("loading");
     try {
-      const response = await fetch(API_ROUTES.deviceDetail(deviceId), {
+      const response = await fetch(API_ROUTES.deviceDetail(serial), {
         method: "GET",
         headers: { Accept: "application/json" },
       });
@@ -50,7 +51,7 @@ export const GovernanceBadgeTooltip = ({ deviceId, cueSummary, badge }: Governan
       console.error("Governance tooltip fetch failed", error);
       setStatus("error");
     }
-  }, [deviceId]);
+  }, [serial]);
 
   const openTooltip = useCallback(() => {
     setIsOpen(true);

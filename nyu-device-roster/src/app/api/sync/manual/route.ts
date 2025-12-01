@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { withSession, type NextRequestWithSession } from "@/lib/auth/sessionMiddleware";
 import { ensureRuntimeConfig } from "@/lib/config";
 import connectToDatabase from "@/lib/db";
+import { recordAuditLogFromSyncEvent } from "@/lib/audit/auditLogs";
 import { SheetFetchError } from "@/lib/google-sheets";
 import { AppError, mapToAppError, serializeAppError } from "@/lib/errors/app-error";
 import { logger } from "@/lib/logging";
@@ -48,11 +49,33 @@ const recordManualSyncFailure = async (payload: {
       referenceId: payload.error.referenceId,
     },
   });
+
+  await recordAuditLogFromSyncEvent({
+    eventType: "SYNC_RUN",
+    action: "MANUAL_SYNC_FAILED",
+    actor: payload.managerEmail,
+    status: "error",
+    errorCode: payload.error.code,
+    context: {
+      runId: payload.runId,
+      sheetId: payload.sheetId,
+      requestId: payload.requestId,
+      recommendation: payload.error.recommendation,
+      referenceId: payload.error.referenceId,
+    },
+  });
 };
 
 export const POST = withSession(async (request: NextRequestWithSession) => {
   const requestId = request.headers.get("x-request-id") ?? undefined;
   const managerEmail = request.session.user?.email ?? null;
+  let requestedMode: "live" | "dry-run" | undefined;
+  try {
+    const body = (await request.json()) as { mode?: "live" | "dry-run" } | undefined;
+    requestedMode = body?.mode;
+  } catch {
+    requestedMode = undefined;
+  }
 
   let runtimeConfig;
   try {
@@ -95,11 +118,14 @@ export const POST = withSession(async (request: NextRequestWithSession) => {
     requestedBy: managerEmail,
     anonymized: false,
     queueLatencyMs: 0,
+    mode: requestedMode ?? "live",
   };
 
   markSyncRunning({
     runId,
     requestedBy: managerEmail,
+    trigger: triggerContext.type,
+    mode: triggerContext.mode,
   });
   logger.info(
     {
@@ -117,18 +143,40 @@ export const POST = withSession(async (request: NextRequestWithSession) => {
     requestId,
     trigger: triggerContext,
     runId,
+    mode: triggerContext.mode,
   })
     .then((result) => {
       markSyncSuccess({
         runId,
+        requestedBy: managerEmail,
+        trigger: triggerContext.type,
+        mode: triggerContext.mode,
         metrics: {
           added: result.upsert.added,
           updated: result.upsert.updated,
           unchanged: result.upsert.unchanged,
+        rowsProcessed: result.rowCount,
+          rowsSkipped: result.skipped,
+          conflicts: result.upsert.serialConflicts,
           durationMs: result.durationMs,
-        },
-      });
-    })
+          serialConflicts: result.upsert.serialConflicts,
+        legacyIdsUpdated: result.upsert.legacyIdsUpdated,
+        columnsAdded: result.columnRegistry?.added ?? 0,
+        columnsRemoved: result.columnRegistry?.removed ?? 0,
+        columnTotal: result.columnRegistry?.total ?? 0,
+        columnsVersion: result.columnRegistryVersion,
+      },
+      schemaChange: result.schemaChange
+        ? {
+            added: result.schemaChange.added,
+            removed: result.schemaChange.removed,
+            renamed: result.schemaChange.renamed.map((pair) => `${pair.from} -> ${pair.to}`),
+            currentVersion: result.schemaChange.currentVersion,
+            previousVersion: result.schemaChange.previousVersion,
+          }
+        : undefined,
+    });
+  })
     .catch(async (error) => {
       const mapped =
         error instanceof SheetFetchError
@@ -148,6 +196,9 @@ export const POST = withSession(async (request: NextRequestWithSession) => {
       );
       markSyncError({
         runId,
+        requestedBy: managerEmail,
+        trigger: triggerContext.type,
+        mode: triggerContext.mode,
         errorCode: mapped.code,
         message: mapped.message,
         recommendation: mapped.recommendation,

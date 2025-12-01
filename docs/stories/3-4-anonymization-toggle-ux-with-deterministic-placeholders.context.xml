@@ -1,0 +1,96 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>C</epicId>
+    <storyId>3.4</storyId>
+    <title>Anonymization toggle UX with deterministic placeholders</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-14</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/3-4-anonymization-toggle-ux-with-deterministic-placeholders.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As an NYU admissions manager</asA>
+    <iWant>I want a deterministic anonymization toggle that masks sensitive columns across the dashboard without flicker</iWant>
+    <soThat>I can run governance-friendly demos without exposing real assignments or breaking analytics hooks</soThat>
+    <tasks><task-list>
+      <task id="T1" ac="AC1" artifact="nyu-device-roster/src/app/(manager)/devices/components/AnonymizationToggle.tsx">Build the client-side toggle with optimistic React Query mutation to `/api/devices/anonymize`, 200&nbsp;ms feedback budget, and loading/disabled states.</task>
+      <task id="T1a" parent="T1" ac="AC1" artifact="nyu-device-roster/src/app/(manager)/devices/state/anonymization-store.ts">Create a shared state store/context that exposes `isAnonymized`, mutation helpers, and subscribes banner + grid consumers.</task>
+      <task id="T2" ac="AC2" artifact="nyu-device-roster/src/lib/anonymization.ts">Implement deterministic placeholder helpers (hashing deviceId+column) that can run on API, worker, and UI layers.</task>
+      <task id="T2a" parent="T2" ac="AC2" artifact="nyu-device-roster/src/app/(manager)/devices/components/DeviceGrid.tsx">Update grid cell renderers to swap sensitive values with helper output whenever anonymization is enabled.</task>
+      <task id="T3" ac="AC3" artifact="nyu-device-roster/src/components/SyncStatusBanner.tsx">Pipe anonymization state into banner copy, `aria-pressed`, and analytics beacons so operators always see the active mode.</task>
+      <task id="T3a" parent="T3" ac="AC3" artifact="nyu-device-roster/src/lib/logging.ts">Emit structured audit + analytics logs (`event: ANONYMIZATION_TOGGLED`, actor, timestamp) every time the state changes.</task>
+      <task id="T4" ac="AC1,AC2,AC3" artifact="nyu-device-roster/tests/unit/app/anonymization-toggle.test.tsx">Author Vitest/RTL suites to cover toggle latency, placeholder determinism, and banner a11y attributes, plus Playwright coverage for analytics beacons.</task>
+      <task id="T5" ac="AC1-AC3" artifact="docs/stories/3-4-anonymization-toggle-ux-with-deterministic-placeholders.md">Update Dev Notes with API contract, helper usage, and telemetry expectations so C5+ stories can reuse this infrastructure.</task>
+    </task-list></tasks>
+  </story>
+
+  <acceptanceCriteria><criteria>
+      <criterion id="AC1">Anonymization toggle updates grid/banners within 200&nbsp;ms, persists via `/api/devices/anonymize`, and records audit events with actor + timestamp.</criterion>
+      <criterion id="AC2">Masked columns display deterministic placeholders derived from deviceId so repeated toggles stay consistent across grid, exports, and status banner.</criterion>
+      <criterion id="AC3">UI surfaces anonymization state in the banner, aria attributes, and analytics logging, keeping governance panels and telemetry in sync.</criterion>
+    </criteria></acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact path="docs/epics.md" title="Epic C – Manager Dashboard" section="Story C4" >Epic C4 defines deterministic anonymization with toggle + audit hooks before governance presets roll out, referencing prerequisites from C2/C3 (docs/epics.md:199-205).</artifact>
+      <artifact path="docs/PRD.md" title="PRD" section="FR-009 / FR-011" >PRD requires anonymization interactions to respond in &lt;200&nbsp;ms, reuse deterministic placeholders, and emit audit events + UX cues (docs/PRD.md:41-47,148-182,200-205).</artifact>
+      <artifact path="docs/architecture.md" title="Architecture" section="Epic to Architecture Mapping" >Architecture maps manager dashboard features to `app/(manager)/devices` plus shared React Query hooks and logging stack that this story must extend (docs/architecture.md:121-205).</artifact>
+      <artifact path="docs/architecture.md" title="Architecture" section="Implementation Patterns" >Implementation rules enforce API envelopes `{ data, meta, error }`, feature-first folders, and logging conventions used by toggle + analytics (docs/architecture.md:167-205).</artifact>
+      <artifact path="docs/runbook/sync-operations.md" title="Sync Ops Runbook" section="Operational Playbook" >Runbook highlights governance expectations and audit logging patterns that anonymization must feed into dashboards (docs/runbook/sync-operations.md:120-140).</artifact>
+      <artifact path="docs/ux-design-directions.html" title="UX Design Directions" section="Governance Timeline" >UX mocks depict governance badges, anonymization chips, and CTA copy that inform toggle microcopy and analytics cues (docs/ux-design-directions.html:800-838).</artifact>
+      <artifact path="docs/stories/3-3-governance-cues-for-offboarding-workflows.md" title="Story 3.3" section="Structure Alignment" >Upstream story documents grid + governance expectations; anonymization must align so cues and toggles share state (docs/stories/3-3-governance-cues-for-offboarding-workflows.md:12-36).</artifact>
+    </docs>
+    <code>
+      <artifact path="nyu-device-roster/src/lib/logging.ts" kind="utility" symbol="logger" lines="1-70" reason="Provides Pino logger + helpers used to emit `ANONYMIZATION_TOGGLED` events with actor/request metadata."></artifact>
+      <artifact path="nyu-device-roster/src/lib/audit/syncEvents.ts" kind="service" symbol="recordConfigValidationEvent" lines="1-90" reason="Audit helper shows how governance events persist to `sync_events`; reuse for anonymization toggle entries."></artifact>
+      <artifact path="nyu-device-roster/src/lib/sync-status.ts" kind="service" symbol="markSyncRunning/markSyncSuccess" lines="1-120" reason="Demonstrates shared state store + subscriber pattern that anonymization context can mirror for consistent UI updates."></artifact>
+      <artifact path="nyu-device-roster/src/lib/use-sync-status.ts" kind="hook" symbol="useSyncStatus" lines="1-80" reason="Client hook pattern for polling + state hydration; toggle hook should follow similar error/loading handling."></artifact>
+      <artifact path="nyu-device-roster/src/app/api/sync/status/route.ts" kind="api" symbol="GET /api/sync/status" lines="1-15" reason="Reference implementation for lightweight status endpoints returning `{ data, error }` envelopes."></artifact>
+      <artifact path="nyu-device-roster/src/components/SyncStatusBanner.tsx" kind="component" symbol="SyncStatusBanner" lines="1-80" reason="Existing banner demonstrates aria/live-region handling the toggle must integrate with to announce anonymization state."></artifact>
+      <artifact path="nyu-device-roster/src/lib/config.ts" kind="service" symbol="loadConfig" lines="1-160" reason="Config loader is source of truth for anonymization defaults and should back any preset/persistence logic."></artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="next" version="16.0.1" reason="App Router platform for dashboard layouts and API routes such as `/api/devices/anonymize`." />
+        <package name="react" version="19.2.0" reason="Toggle UI, context providers, and banner components rely on React hooks + concurrent rendering." />
+        <package name="next-auth" version="^4.24.13" reason="Authenticates managers so only authorized users can toggle anonymization." />
+        <package name="mongoose" version="^8.19.3" reason="Persist anonymization state and audit entries in Mongo collections alongside devices/config." />
+        <package name="@google-cloud/secret-manager" version="^6.1.1" reason="Keeps service tokens + anonymization presets secure outside source control." />
+        <package name="pino" version="^10.1.0" reason="Structured logging for toggle/audit events with request correlation." />
+        <package name="zod" version="^4.1.12" reason="Validate `/api/devices/anonymize` payloads and ensure deterministic helper inputs." />
+        <package name="vitest" version="^4.0.7" reason="Unit/component tests for toggles and helpers run on the Vitest stack defined in package.json." />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Maintain feature-first layout under `app/(manager)/devices`, colocating toggle components, state hooks, and tests for discoverability.</constraint>
+    <constraint>All toggle requests must reuse `{ data, error }` envelopes and shared fetch wrappers—no bespoke response shapes.</constraint>
+    <constraint>Enforce the 200&nbsp;ms feedback budget by optimistic updates + deferred refetch; log latency metrics via Pino for observability.</constraint>
+    <constraint>Deterministic placeholders must derive solely from deviceId + column seed so UI, exports, and APIs never drift.</constraint>
+    <constraint>Every toggle fires audit + analytics events via `lib/logging.ts` and `lib/audit/syncEvents.ts`, capturing actor, requestId, and new state.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="POST /api/devices/anonymize" kind="REST" signature="POST /api/devices/anonymize { enabled: boolean } → { data: { enabled, updatedAt }, error: null }" >
+      <path>nyu-device-roster/src/app/api/devices/anonymize/route.ts</path>
+    </interface>
+    <interface name="GET /api/sync/status" kind="REST" signature="GET /api/sync/status → { data: SyncStatusState, error: null }" >
+      <path>nyu-device-roster/src/app/api/sync/status/route.ts</path>
+    </interface>
+    <interface name="useAnonymizationState" kind="hook" signature="useAnonymizationState(): { enabled, toggle, isPending }" >
+      <path>nyu-device-roster/src/app/(manager)/devices/state/anonymization-store.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Use Vitest + React Testing Library for component/helper coverage, co-locate unit tests with source, and rely on Playwright or API integration suites for end-to-end toggle + audit verification.</standards>
+    <locations>nyu-device-roster/tests/unit/app; nyu-device-roster/tests/unit/lib; nyu-device-roster/tests/integration</locations>
+    <ideas>
+      <idea ac="AC1">Simulate rapid toggle clicks and assert the React Query mutation resolves within 200&nbsp;ms while audit logger receives exactly one event per state change.</idea>
+      <idea ac="AC2">Unit test deterministic helper to ensure `maskValue(Device#123,email)` always returns the same placeholder across multiple invocations.</idea>
+      <idea ac="AC3">Playwright spec toggles anonymization and verifies SyncStatusBanner text, `aria-pressed`, and analytics beacon payloads update immediately.</idea>
+    </ideas>
+  </tests>
+</story-context>

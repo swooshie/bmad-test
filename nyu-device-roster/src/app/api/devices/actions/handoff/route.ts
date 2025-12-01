@@ -9,12 +9,12 @@ type HandoffResponse =
   | { data: null; error: { code: string; message: string } };
 
 export const POST = withSession(async (request) => {
-  const body = (await request.json().catch(() => ({}))) as { deviceId?: string | null };
-  const deviceId = body.deviceId;
+  const body = (await request.json().catch(() => ({}))) as { serial?: string | null };
+  const serial = body.serial;
 
-  if (!deviceId) {
+  if (!serial) {
     return NextResponse.json<HandoffResponse>(
-      { data: null, error: { code: "DEVICE_ID_REQUIRED", message: "deviceId is required" } },
+      { data: null, error: { code: "DEVICE_ID_REQUIRED", message: "serial is required" } },
       { status: 400 }
     );
   }
@@ -23,14 +23,14 @@ export const POST = withSession(async (request) => {
     {
       event: "DEVICE_DRAWER_ACTION",
       action: "HANDOFF_INITIATED",
-      deviceId,
+      serial,
       userEmail: request.session.user?.email ?? null,
     },
     "Device handoff initiated"
   );
 
   await recordSyncEvent({
-    deviceId,
+    serial,
     eventType: "DEVICE_HANDOFF_INITIATED",
     route: "/api/devices/actions/handoff",
     method: "POST",

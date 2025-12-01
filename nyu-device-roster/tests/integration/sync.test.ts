@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import mongoose from "mongoose";
-import { MongoMemoryServer } from "mongodb-memory-server";
+import { MongoMemoryReplSet } from "mongodb-memory-server";
 
 import connectToDatabase, { resetDatabaseConnectionForTests } from "@/lib/db";
 import DeviceModel from "@/models/Device";
@@ -8,12 +8,12 @@ import SyncEventModel from "@/models/SyncEvent";
 import { applyDeviceUpserts } from "@/workers/sync";
 import { normalizeSheetRows } from "@/workers/sync/transform";
 
-let mongo: MongoMemoryServer | null = null;
+let replSet: MongoMemoryReplSet | null = null;
 let skipSuite = false;
 
 try {
-  mongo = await MongoMemoryServer.create({
-    instance: { ip: "127.0.0.1" },
+  replSet = await MongoMemoryReplSet.create({
+    replSet: { count: 1, storageEngine: "wiredTiger" },
   });
 } catch (error) {
   skipSuite = true;
@@ -24,16 +24,16 @@ afterAll(async () => {
   if (!skipSuite && mongoose.connection.readyState === 1) {
     await mongoose.connection.close();
   }
-  if (!skipSuite && mongo) {
-    await mongo.stop();
+  if (!skipSuite && replSet) {
+    await replSet.stop();
   }
 });
 
 beforeEach(async () => {
-  if (skipSuite || !mongo) {
+  if (skipSuite || !replSet) {
     return;
   }
-  await connectToDatabase(mongo.getUri());
+  await connectToDatabase(replSet.getUri());
   await mongoose.connection.db.dropDatabase();
 });
 
@@ -49,6 +49,7 @@ describeIf("applyDeviceUpserts", () => {
     const normalization = normalizeSheetRows(
       [
         {
+          serial: "device-001",
           deviceId: "device-001",
           assignedTo: "Alex",
           status: "Active",
@@ -56,6 +57,7 @@ describeIf("applyDeviceUpserts", () => {
           offboardingStatus: "",
         },
         {
+          serial: "device-002",
           deviceId: "device-002",
           assignedTo: "Jamie",
           status: "Active",
@@ -79,12 +81,14 @@ describeIf("applyDeviceUpserts", () => {
     const secondNormalization = normalizeSheetRows(
       [
         {
+          serial: "device-001",
           deviceId: "device-001",
           assignedTo: "Taylor",
           status: "Active",
           condition: "Good",
         },
         {
+          serial: "device-002",
           deviceId: "device-002",
           assignedTo: "Jamie",
           status: "Active",
@@ -106,7 +110,7 @@ describeIf("applyDeviceUpserts", () => {
     expect(secondRun.unchanged).toBe(1);
 
     const stored = await DeviceModel.findOne({
-      deviceId: "device-001",
+      serial: "device-001",
       sheetId: "sheet-1",
     }).lean();
     expect(stored?.assignedTo).toBe("Taylor");

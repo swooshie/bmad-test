@@ -1,0 +1,93 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>C</epicId>
+    <storyId>3.6</storyId>
+    <title>Governance reminder banner & anonymization presets</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-14</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/3-6-governance-reminder-banner-and-anonymization-presets.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As an NYU admissions manager</asA>
+    <iWant>I want a governance reminder banner with anonymization presets and clear guidance</iWant>
+    <soThat>I can toggle demo-safe data views quickly while maintaining audit-friendly transparency</soThat>
+    <tasks><task-list>
+      <task id="T1" ac="AC1" artifact="nyu-device-roster/src/app/(manager)/layout.tsx">Embed a `GovernanceBanner` region in the shared layout that binds to anonymization state, surfaces last toggle timestamp, and exposes a CTA to open presets.</task>
+      <task id="T1a" parent="T1" ac="AC1" artifact="nyu-device-roster/src/app/(manager)/devices/state/anonymization-store.ts">Extend shared anonymization context/store with lastToggle metadata, preset selection, and subscription hooks consumed by banner + presets.</task>
+      <task id="T2" ac="AC2" artifact="nyu-device-roster/src/app/(manager)/devices/components/AnonymizationPresetsPanel.tsx">Implement preset panel UI (Demo-safe, Full visibility, custom overrides) with per-column switches that reuse deterministic placeholder helper.</task>
+      <task id="T2a" parent="T2" ac="AC2" artifact="nyu-device-roster/src/app/api/devices/presets/route.ts">Add `/api/devices/presets` (or extend `/api/devices/anonymize`) to persist preset selections, leveraging `lib/anonymization.ts` for deterministic mapping and `lib/config.ts` for storage.</task>
+      <task id="T3" ac="AC3" artifact="nyu-device-roster/src/lib/logging.ts">Emit structured `ANONYMIZATION_PRESET_CHANGED` logs with actor, presetId, overrides, and anonymized state; ensure audit helpers (`lib/audit/syncEvents.ts`) persist entries.</task>
+      <task id="T3a" parent="T3" ac="AC3" artifact="nyu-device-roster/src/components/SyncStatusBanner.tsx">Coordinate banner + presets with instrumentation hooks from Story 3.5 so analytics capture each preset/toggle event.</task>
+      <task id="T4" ac="AC1-AC3" artifact="docs/governance-banner-runbook.md">Document how demo operators use the banner, presets, and audit logs; include troubleshooting steps and accessibility expectations.</task>
+      <task id="T5" ac="AC1-AC3" artifact="nyu-device-roster/tests/unit/app/governance-banner.test.tsx">Add unit/component tests for banner states, preset toggles, and accessibility, plus integration test verifying API persists presets and logs each change.</task>
+    </task-list></tasks>
+  </story>
+
+  <acceptanceCriteria><criteria>
+      <criterion id="AC1">Governance banner displays anonymization state, last toggle timestamp, and CTA; updates instantly when state changes.</criterion>
+      <criterion id="AC2">Preset panel offers Demo-safe / Full visibility plus overrides, persisting via API and reusing deterministic placeholders.</criterion>
+      <criterion id="AC3">Controls expose accessible states (`aria-pressed`, `aria-describedby`, focus order) and emit audit logs for every preset/toggle change.</criterion>
+    </criteria></acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact path="docs/epics.md" title="Epic C – Manager Dashboard" section="Story C6" >Epic C6 describes governance banner requirements (state, presets, audit logging) and prerequisites on Stories C1 and C4 (docs/epics.md:216-224).</artifact>
+      <artifact path="docs/PRD.md" title="PRD" section="Governance & Accessibility" >PRD mandates visible governance cues, accessible controls, and logging for anonymization changes (docs/PRD.md:60,148-156,213).</artifact>
+      <artifact path="docs/PRD.md" title="PRD" section="Anonymization Constraints" >Deterministic placeholder requirement and preset expectations originate here (docs/PRD.md:201-205).</artifact>
+      <artifact path="docs/architecture.md" title="Architecture" section="Frontend Structure & Observability" >Architecture lays out feature-first structure (`app/(manager)/layout.tsx`), shared state patterns, and logging stack used by the banner (docs/architecture.md:62-205,167-195).</artifact>
+      <artifact path="docs/stories/3-4-anonymization-toggle-ux-with-deterministic-placeholders.md" title="Story 3.4" section="Dev Notes" >Story 3.4 documents deterministic toggle/helper patterns this banner must reuse (docs/stories/3-4-anonymization-toggle-ux-with-deterministic-placeholders.md:72-80).</artifact>
+      <artifact path="docs/stories/3-5-performance-instrumentation-and-lighthouse-checks.md" title="Story 3.5" section="Structure Alignment" >Instrumentation deliverables from Story 3.5 feed the banner’s telemetry (docs/stories/3-5-performance-instrumentation-and-lighthouse-checks.md:12-24).</artifact>
+    </docs>
+    <code>
+      <artifact path="nyu-device-roster/src/components/SyncStatusBanner.tsx" kind="component" symbol="SyncStatusBanner" lines="1-80" reason="Existing banner illustrates layout, aria usage, and shared state consumption the governance banner should mimic.</artifact>
+      <artifact path="nyu-device-roster/src/lib/logging.ts" kind="utility" symbol="logger" lines="1-80" reason="Provides Pino logger + helpers to emit audit events for preset changes.</artifact>
+      <artifact path="nyu-device-roster/src/lib/audit/syncEvents.ts" kind="service" symbol="recordAllowlistChangeEvent" lines="1-110" reason="Demonstrates how governance events persist to `sync_events`; reuse for anonymization preset logs.</artifact>
+      <artifact path="nyu-device-roster/src/lib/config.ts" kind="service" symbol="loadConfig" lines="1-140" reason="Configuration loader stores allowlist and could persist preset defaults or metadata.</artifact>
+      <artifact path="nyu-device-roster/src/app/api/sync/manual/route.ts" kind="api" symbol="POST /api/sync/manual" lines="1-120" reason="Example Next.js route using session middleware + logging—mirror patterns for `/api/devices/presets`.</artifact>
+      <artifact path="nyu-device-roster/src/lib/sync-status.ts" kind="service" symbol="markSyncRunning" lines="1-120" reason="Shared state helper showing how to broadcast status updates; anonymization store should follow similar API.</artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="next" version="16.0.1" reason="Hosts dashboard layout, banner components, and API routes for presets." />
+        <package name="react" version="19.2.0" reason="Implements hooks/context for governance banner and presets panel." />
+        <package name="next-auth" version="^4.24.13" reason="Ensures only authenticated managers interact with governance presets." />
+        <package name="mongoose" version="^8.19.3" reason="Backs config/preset persistence in Mongo collections." />
+        <package name="pino" version="^10.1.0" reason="Structured logging for preset changes and banner analytics." />
+        <package name="zod" version="^4.1.12" reason="Validates preset payloads in new API routes." />
+        <package name="vitest" version="^4.0.7" reason="Test framework for banner/preset unit tests." />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Reuse the deterministic anonymization helper from Story C4—no duplicate placeholder logic.</constraint>
+    <constraint>Banner + presets must sit inside shared `app/(manager)` layout to keep governance cues consistent across routes.</constraint>
+    <constraint>All preset and toggle actions log via `lib/logging.ts`/`lib/audit/syncEvents.ts` with actor, requestId, and preset metadata.</constraint>
+    <constraint>Controls must meet PRD accessibility guidance (`aria-pressed`, focus order, contrast) and respect reduced-motion settings.</constraint>
+    <constraint>Presets cannot block the UI; API calls should be optimistic and rely on shared context to broadcast state.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="GovernanceBanner" kind="component" signature="<GovernanceBanner state={anonymizationState} onOpenPresets={...} />" >
+      <path>nyu-device-roster/src/app/(manager)/layout.tsx</path>
+    </interface>
+    <interface name="POST /api/devices/presets" kind="REST" signature="POST /api/devices/presets { presetId, overrides } → { data: { presetId, updatedAt }, error: null }" >
+      <path>nyu-device-roster/src/app/api/devices/presets/route.ts</path>
+    </interface>
+    <interface name="useAnonymizationState" kind="hook" signature="useAnonymizationState(): { isAnonymized, lastToggleAt, applyPreset(presetId) }" >
+      <path>nyu-device-roster/src/app/(manager)/devices/state/anonymization-store.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Follow Vitest + React Testing Library for components/hooks, add Playwright coverage for end-to-end preset flows, and ensure CI fails when accessibility or logging expectations regress.</standards>
+    <locations>nyu-device-roster/tests/unit/app; nyu-device-roster/tests/unit/lib; nyu-device-roster/tests/integration; nyu-device-roster/tests/performance</locations>
+    <ideas>
+      <idea ac="AC1">Component test verifying GovernanceBanner renders state text, last toggle timestamp, and CTA updates when context changes.</idea>
+      <idea ac="AC2">Integration test simulating Demo-safe → Full visibility switch to ensure `/api/devices/presets` persists overrides and deterministic placeholders remain stable.</idea>
+      <idea ac="AC3">Accessibility test (RTL or Playwright) checking `aria-pressed`, focus order, and audit log emission for each preset toggle.</idea>
+    </ideas>
+  </tests>
+</story-context>

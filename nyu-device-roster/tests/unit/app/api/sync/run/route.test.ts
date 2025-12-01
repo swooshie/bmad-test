@@ -7,6 +7,12 @@ vi.mock("@/lib/config", () => ({
   RuntimeConfigError: class RuntimeConfigError extends Error {},
 }));
 
+const recordAuditLogFromSyncEvent = vi.fn();
+
+vi.mock("@/lib/audit/auditLogs", () => ({
+  recordAuditLogFromSyncEvent,
+}));
+
 const mockRunDeviceSync = vi.fn();
 
 vi.mock("@/workers/sync", () => ({
@@ -94,8 +100,16 @@ describe("POST /api/sync/run", () => {
         updated: 1,
         unchanged: 0,
         durationMs: 450,
+        serialConflicts: 0,
+        legacyIdsUpdated: 0,
       },
       durationMs: 450,
+      sheetId: "sheet-123",
+      rowCount: 2,
+      skipped: 0,
+      anomalies: [],
+      columnRegistry: { added: 0, removed: 0, total: 0 },
+      columnRegistryVersion: "v1",
     });
     mockAcquireSyncLock.mockResolvedValue({
       acquired: true,
@@ -133,10 +147,14 @@ describe("POST /api/sync/run", () => {
       error: null,
     });
 
-    expect(markSyncRunning).toHaveBeenCalledWith({
-      runId: "run-mock-id",
-      requestedBy: "scheduler",
-    });
+    expect(markSyncRunning).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: "run-mock-id",
+        requestedBy: "scheduler",
+        trigger: "scheduled",
+        mode: "live",
+      })
+    );
     expect(mockRunDeviceSync).toHaveBeenCalledWith(
       expect.objectContaining({
         sheetId: "sheet-123",
@@ -148,6 +166,13 @@ describe("POST /api/sync/run", () => {
     expect(markSyncSuccess).toHaveBeenCalledWith(
       expect.objectContaining({
         runId: "run-mock-id",
+        requestedBy: "scheduler",
+        trigger: "scheduled",
+        metrics: expect.objectContaining({
+          rowsProcessed: 2,
+          rowsSkipped: 0,
+          conflicts: 0,
+        }),
       })
     );
     expect(mockReleaseSyncLock).toHaveBeenCalledWith("run-mock-id");

@@ -9,6 +9,7 @@ export type SyncErrorCode =
   | "SHEETS_RATE_LIMIT"
   | "SHEETS_AUTH_REVOKED"
   | "INVALID_SYNC_CONFIGURATION"
+  | "SERIAL_AUDIT_FAILED"
   | "SYNC_DISABLED"
   | "SYNC_TIMEOUT"
   | "TRANSFORM_VALIDATION_FAILED"
@@ -48,6 +49,11 @@ const ERROR_CATALOG: Record<SyncErrorCode, ErrorCatalogEntry> = {
     httpStatus: 400,
     defaultMessage: "Sync configuration is invalid",
     recommendation: "Fix invalid sync settings (sheetId, tab) and redeploy config.",
+  },
+  SERIAL_AUDIT_FAILED: {
+    httpStatus: 409,
+    defaultMessage: "Serial audit blocked the sync run",
+    recommendation: "Fill in missing serial numbers in Google Sheets and re-run the audit.",
   },
   SYNC_DISABLED: {
     httpStatus: 202,

@@ -1,0 +1,94 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>C</epicId>
+    <storyId>3.5</storyId>
+    <title>Performance instrumentation and lighthouse checks</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-14</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/3-5-performance-instrumentation-and-lighthouse-checks.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As a product manager</asA>
+    <iWant>I want automated instrumentation and Lighthouse checks proving we meet sub-2s load and sub-200 ms interactions</iWant>
+    <soThat>I can share objective performance evidence with demo stakeholders before sign-off</soThat>
+    <tasks><task-list>
+      <task id="T1" ac="AC1" artifact="nyu-device-roster/src/app/(manager)/devices/hooks/usePerformanceMetrics.ts">Implement `usePerformanceMetrics` hook that captures FCP, INP, and grid interaction timings via `PerformanceObserver`, batching payloads with requestId/anonymization metadata.</task>
+      <task id="T1a" parent="T1" ac="AC1" artifact="nyu-device-roster/src/app/(manager)/devices/components/DeviceGrid.tsx">Wire the grid + status banner to the new hook so interaction latencies are recorded whenever managers sort/filter rows.</task>
+      <task id="T2" ac="AC1" artifact="nyu-device-roster/src/app/api/metrics/route.ts">Create `/api/metrics` endpoint that validates payloads with Zod and forwards structured events through `lib/logging.ts` for Cloud Logging ingestion.</task>
+      <task id="T2a" parent="T2" ac="AC1" artifact="nyu-device-roster/src/lib/logging.ts">Extend logging helpers with `event: PERFORMANCE_METRIC` schema capturing metric name, value, threshold, anonymized state, and build log-based metric guidance.</task>
+      <task id="T3" ac="AC2" artifact="nyu-device-roster/tests/performance/lighthouse.ci.mjs">Add headless Lighthouse script targeting the App Engine URL, exporting HTML+JSON reports to `artifacts/perf/` and failing builds below 90 Performance.</task>
+      <task id="T3a" parent="T3" ac="AC2" artifact="nyu-device-roster/package.json">Register `npm run perf:lighthouse` (and CI hook) so engineers can run the audit locally and in pipelines with consistent flags.</task>
+      <task id="T4" ac="AC3" artifact="docs/performance-runbook.md">Publish a runbook describing instrumentation commands, thresholds, interpretation tips, and sample report template for PM stakeholders.</task>
+      <task id="T5" ac="AC1-AC3" artifact="nyu-device-roster/tests/unit/app/usePerformanceMetrics.test.ts">Add unit/component tests for the metrics hook, API validation, and CI guard that asserts Lighthouse scores stay ≥90.</task>
+    </task-list></tasks>
+  </story>
+
+  <acceptanceCriteria><criteria>
+      <criterion id="AC1">Add frontend timing hooks for FCP/INP and grid interaction latency that feed `/api/metrics` or structured logs for analysis.</criterion>
+      <criterion id="AC2">Provide a Lighthouse automation script targeting the App Engine URL that consistently yields ≥90 Performance scores and artifacts.</criterion>
+      <criterion id="AC3">Publish a runbook showing how to execute instrumentation scripts, interpret thresholds, and share the results.</criterion>
+    </criteria></acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact path="docs/epics.md" title="Epic C – Manager Dashboard" section="Story C5" >Epic C5 defines instrumentation hooks, Lighthouse automation, and documentation deliverables needed before demo approvals (docs/epics.md:208-214).</artifact>
+      <artifact path="docs/PRD.md" title="PRD" section="Performance Targets" >PRD performance section mandates &lt;2s load and &lt;200 ms interactions with proof via instrumentation (docs/PRD.md:40-48).</artifact>
+      <artifact path="docs/architecture.md" title="Architecture" section="Observability" >Architecture highlights Pino + Cloud Logging stack, log-based metrics, and alerts to extend for performance telemetry (docs/architecture.md:21,154-156,283,326).</artifact>
+      <artifact path="docs/runbook/sync-operations.md" title="Sync Operations Runbook" section="Monitoring Tips" >Runbook already outlines monitoring/alert expectations that instrumentation must integrate with (docs/runbook/sync-operations.md:100-140).</artifact>
+      <artifact path="docs/stories/3-4-anonymization-toggle-ux-with-deterministic-placeholders.md" title="Story 3.4" section="Dev Notes" >Previous story describes shared state/banners consuming telemetry; performance hooks must keep those consumers updated (docs/stories/3-4-anonymization-toggle-ux-with-deterministic-placeholders.md:72-80).</artifact>
+    </docs>
+    <code>
+      <artifact path="nyu-device-roster/src/lib/logging.ts" kind="utility" symbol="logger" lines="1-80" reason="Base logging helpers already emit structured events; reuse to push PERFORMANCE_METRIC payloads instead of inventing a new sink."></artifact>
+      <artifact path="nyu-device-roster/src/lib/sync-status.ts" kind="service" symbol="markSyncSuccess" lines="1-110" reason="Shows how shared state modules capture timestamps/metrics; mirror this pattern for client-side performance store."></artifact>
+      <artifact path="nyu-device-roster/src/app/api/sync/status/route.ts" kind="api" symbol="GET /api/sync/status" lines="1-15" reason="Reference for lightweight API routes returning `{ data, error }` envelopes, which `/api/metrics` should follow."></artifact>
+      <artifact path="nyu-device-roster/package.json" kind="config" symbol="scripts" lines="1-40" reason="Holds npm scripts; add `perf:lighthouse` near existing verify/ test commands for parity."></artifact>
+      <artifact path="nyu-device-roster/scripts/verify-sync-indexes.ts" kind="script" symbol="verify-sync-indexes" lines="1-120" reason="Demonstrates how operational scripts are structured/logged; Lighthouse automation should follow similar patterns."></artifact>
+      <artifact path="nyu-device-roster/tests/integration/sync.test.ts" kind="test" symbol="sync integration" lines="1-120" reason="Shows how integration tests assert operational outcomes—useful template for perf guard or API validation tests."></artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="next" version="16.0.1" reason="App Router runtime hosting the dashboard and new `/api/metrics` endpoint." />
+        <package name="react" version="19.2.0" reason="Hooks/components deliver instrumentation UI and observers." />
+        <package name="next-auth" version="^4.24.13" reason="Ensures only authenticated managers generate/study metrics." />
+        <package name="mongoose" version="^8.19.3" reason="Provides data persistence and config context referenced when correlating metrics with runs." />
+        <package name="pino" version="^10.1.0" reason="Structured logging backend for all metrics and Lighthouse results." />
+        <package name="zod" version="^4.1.12" reason="Validate `/api/metrics` payloads and CLI inputs before logging." />
+        <package name="vitest" version="^4.0.7" reason="Unit/component testing for hooks and API handlers." />
+        <package name="lighthouse" version="^12.1.0" reason="CLI used by the automation script to verify ≥90 performance scores." />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Instrumentation must reuse existing logging/observability stack (Pino → Cloud Logging) rather than introducing new SaaS tools.</constraint>
+    <constraint>Do not block the UI waiting for metric uploads; hooks should batch asynchronously and respect the 200 ms interaction SLA.</constraint>
+    <constraint>`/api/metrics` must follow the `{ data, error }` response envelope and validate inputs with Zod to avoid noisy logs.</constraint>
+    <constraint>Lighthouse automation should run headless in CI and fail builds when scores drop under 90 to protect demo readiness.</constraint>
+    <constraint>Runbook deliverables belong under `docs/` with actionable steps so PMs can execute instrumentation without engineering help.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="POST /api/metrics" kind="REST" signature="POST /api/metrics { metric: string; value: number; threshold: number; context?: Record<string,string> } → { data: { recorded: true }, error: null }" >
+      <path>nyu-device-roster/src/app/api/metrics/route.ts</path>
+    </interface>
+    <interface name="usePerformanceMetrics" kind="hook" signature="usePerformanceMetrics(options): { recordInteraction(metricId, deltaMs), latest }" >
+      <path>nyu-device-roster/src/app/(manager)/devices/hooks/usePerformanceMetrics.ts</path>
+    </interface>
+    <interface name="npm run perf:lighthouse" kind="script" signature="lighthouse --config tests/performance/lighthouse.ci.mjs --output html,json --output-path artifacts/perf" >
+      <path>nyu-device-roster/package.json</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Follow Vitest + React Testing Library for hooks/utilities, place integration/performance specs under `tests/performance`, and fail CI when Lighthouse or metric thresholds regress.</standards>
+    <locations>nyu-device-roster/tests/unit/app; nyu-device-roster/tests/unit/lib; nyu-device-roster/tests/performance</locations>
+    <ideas>
+      <idea ac="AC1">Unit test `usePerformanceMetrics` to ensure it records FCP/INP even when `PerformanceObserver` is unavailable (falls back to `performance.timing`).</idea>
+      <idea ac="AC1">API test posting sample metrics verifies Zod validation errors and that logger receives expected payload.</idea>
+      <idea ac="AC2">CI test runs `npm run perf:lighthouse` against staging URL and asserts the JSON report’s performance score ≥ 90.</idea>
+      <idea ac="AC3">Docs test (markdown lint or link check) ensures `docs/performance-runbook.md` references current scripts and metrics.</idea>
+    </ideas>
+  </tests>
+</story-context>

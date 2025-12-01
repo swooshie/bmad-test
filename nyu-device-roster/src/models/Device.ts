@@ -7,7 +7,8 @@ export interface DeviceOffboardingMetadata {
 }
 
 export interface DeviceAttributes {
-  deviceId: string;
+  serial: string;
+  legacyDeviceId?: string | null;
   sheetId: string;
   assignedTo: string;
   status: string;
@@ -18,6 +19,9 @@ export interface DeviceAttributes {
   lastSeen?: Date | null;
   lastSyncedAt: Date;
   contentHash: string;
+  serialMigratedAt?: Date | null;
+  dynamicAttributes?: Record<string, string | number | boolean | null>;
+  columnDefinitionsVersion?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,7 +37,8 @@ const offboardingMetadataSchema = new Schema<DeviceOffboardingMetadata>(
 
 const deviceSchema = new Schema<DeviceAttributes>(
   {
-    deviceId: { type: String, required: true, trim: true },
+    serial: { type: String, required: true, trim: true, lowercase: true },
+    legacyDeviceId: { type: String, default: null, trim: true },
     sheetId: { type: String, required: true, trim: true },
     assignedTo: { type: String, required: true, trim: true },
     status: { type: String, required: true, trim: true },
@@ -44,6 +49,13 @@ const deviceSchema = new Schema<DeviceAttributes>(
     lastSeen: { type: Date, default: null },
     lastSyncedAt: { type: Date, required: true },
     contentHash: { type: String, required: true },
+    serialMigratedAt: { type: Date, default: null },
+    dynamicAttributes: {
+      type: Map,
+      of: Schema.Types.Mixed,
+      default: undefined,
+    },
+    columnDefinitionsVersion: { type: String, default: null },
   },
   {
     collection: "devices",
@@ -51,9 +63,29 @@ const deviceSchema = new Schema<DeviceAttributes>(
   }
 );
 
-deviceSchema.index({ deviceId: 1, sheetId: 1 }, { unique: true, name: "device_sheet_unique" });
+deviceSchema.index(
+  { serial: 1 },
+  {
+    unique: true,
+    name: "device_serial_unique",
+    partialFilterExpression: {
+      serial: { $exists: true, $type: "string" },
+    },
+  }
+);
+deviceSchema.index(
+  { legacyDeviceId: 1, sheetId: 1 },
+  {
+    unique: true,
+    name: "device_legacy_sheet_unique",
+    partialFilterExpression: {
+      legacyDeviceId: { $exists: true, $type: "string" },
+    },
+  }
+);
 deviceSchema.index({ assignedTo: 1 }, { name: "device_assigned_to_idx" });
 deviceSchema.index({ lastSyncedAt: -1 }, { name: "device_last_synced_idx" });
+deviceSchema.index({ "dynamicAttributes.$**": 1 }, { name: "device_dynamic_attributes_idx" });
 
 export const DeviceModel = models.Device || model<DeviceAttributes>("Device", deviceSchema);
 

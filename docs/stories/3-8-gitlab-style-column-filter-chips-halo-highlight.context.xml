@@ -1,0 +1,96 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>C</epicId>
+    <storyId>3.8</storyId>
+    <title>GitLab-style column filter chips & halo highlight</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-14</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/3-8-gitlab-style-column-filter-chips-halo-highlight.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As an NYU admissions manager</asA>
+    <iWant>I want column filters to surface as chips with halo highlighting tied to the roster grid</iWant>
+    <soThat>I can combine filters rapidly without leaving the dashboard while governance cues remain accurate</soThat>
+    <tasks><task-list>
+      <task id="T1" ac="AC1" artifact="nyu-device-roster/src/app/(manager)/components/FilterChipsBar.tsx">Create `FilterChipsBar` component rendering active filter chips with counts, reorder/remove controls, and overflow handling backed by React state.</task>
+      <task id="T1a" parent="T1" ac="AC1" artifact="nyu-device-roster/src/app/(manager)/dashboard/page.tsx">Wire grid filter dropdowns and typeahead search to emit chip metadata and sync with router query params so filters persist across reload/link sharing.</task>
+      <task id="T1b" parent="T1" ac="AC1,AC3" artifact="nyu-device-roster/src/app/(manager)/devices/hooks/useDeviceGrid.ts">Extend shared hook/store to expose `activeFilters`, chip serialization helpers, and React Query key derivation so the grid fetches filtered data without cache misses.</task>
+      <task id="T2" ac="AC2" artifact="nyu-device-roster/src/app/(manager)/components/RowHaloHighlighter.tsx">Implement halo highlighting utility that receives matched row ids and applies violet halo animation honoring reduced-motion preferences.</task>
+      <task id="T2a" parent="T2" ac="AC2" artifact="nyu-device-roster/src/lib/logging.ts">Emit instrumentation logs for halo activation latency (<=200ms) and degraded virtualization fallbacks using existing logger helpers.</task>
+      <task id="T3" ac="AC3" artifact="nyu-device-roster/src/app/(manager)/components/FilterChip.tsx">Add accessible chip component with `aria-pressed`, keyboard shortcuts (Left/Right, Delete), and live announcements for state changes.</task>
+      <task id="T3a" parent="T3" ac="AC3" artifact="nyu-device-roster/src/lib/audit/syncEvents.ts">Record `FILTER_CHIP_UPDATED` audit entries capturing requestId, anonymization state, and filter payload for governance dashboards.</task>
+      <task id="T4" ac="AC1-AC3" artifact="docs/governance-banner-runbook.md">Update runbook with chip workflows, halo meaning, and troubleshooting steps for demo operators.</task>
+      <task id="T5" ac="AC1-AC3" artifact="nyu-device-roster/tests/unit/app/filter-chips.test.tsx">Add unit/component tests for chip reducer, halo toggles, and URL serialization plus Playwright integration spec covering keyboard-only flows and halo rendering.</task>
+    </task-list></tasks>
+  </story>
+
+  <acceptanceCriteria><criteria>
+      <criterion id="AC1">Column dropdown interactions emit persistent chips with counts, support removal/reorder, and mirror active filters in the URL/query state.</criterion>
+      <criterion id="AC2">Rows matching active filters receive a violet halo animation tied to search/filter events while keeping interactions under 200&nbsp;ms.</criterion>
+      <criterion id="AC3">Chips remain accessible (`aria-pressed`, focus order, screen-reader announcements) and ensure filtered queries reuse React Query caches without unnecessary reloads.</criterion>
+    </criteria></acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact path="docs/epics.md" title="Epic C – Manager Dashboard" section="Story C8">Epic C8 defines chip behaviors, halo highlighting, and prerequisites on Story C2 (docs/epics.md:235-242).</artifact>
+      <artifact path="docs/PRD.md" title="PRD" section="FR-007 Device Grid UI">PRD mandates sub-200&nbsp;ms grid interactions, graceful filter UX, and governance logging when filters change (docs/PRD.md:173-190).</artifact>
+      <artifact path="docs/architecture.md" title="Architecture" section="Manager Dashboard Architecture">Architecture outlines feature-first folders, `/api/devices` contract, and logging/observability rules chips must reuse (docs/architecture.md:45-205,259,281-289).</artifact>
+      <artifact path="docs/ux-design-directions.html" title="UX Design Directions" section="Filter Chips & Highlighting">UX mocks specify chip visual design, halo animation, and reduced-motion guidance (docs/ux-design-directions.html:262-290).</artifact>
+      <artifact path="docs/stories/3-4-anonymization-toggle-ux-with-deterministic-placeholders.md" title="Story 3.4" section="Dev Notes">Shared anonymization helpers and state context must be reused so chip counts respect masked data (docs/stories/3-4-anonymization-toggle-ux-with-deterministic-placeholders.md:72-118).</artifact>
+      <artifact path="docs/stories/3-5-performance-instrumentation-and-lighthouse-checks.md" title="Story 3.5" section="Dev Notes">Instrumentation hooks from C5 capture latency for chip/halo events and should be invoked here (docs/stories/3-5-performance-instrumentation-and-lighthouse-checks.md:72-118).</artifact>
+      <artifact path="docs/stories/3-6-governance-reminder-banner-anonymization-presets.md" title="Story 3.6" section="Structure Alignment">Governance banner/preset work provides anonymization context chips must align with (docs/stories/3-6-governance-reminder-banner-anonymization-presets.md:41-90).</artifact>
+    </docs>
+    <code>
+      <artifact path="nyu-device-roster/src/app/(manager)/dashboard/page.tsx" kind="page" symbol="DashboardPage" lines="1-200" reason="Hosts the device grid and will orchestrate filter dropdowns, chip bar, and halo state."></artifact>
+      <artifact path="nyu-device-roster/src/app/(manager)/components/SyncStatusBanner.tsx" kind="component" symbol="SyncStatusBanner" lines="1-120" reason="Demonstrates accessible status announcements and shared context wiring to mirror for chips."></artifact>
+      <artifact path="nyu-device-roster/src/app/(manager)/layout.tsx" kind="layout" symbol="ManagerLayout" lines="1-160" reason="Shared layout where chip bar may live alongside governance banner and session guards."></artifact>
+      <artifact path="nyu-device-roster/src/lib/logging.ts" kind="utility" symbol="logger" lines="1-120" reason="Provides structured logging helpers used to record filter chip events and halo diagnostics."></artifact>
+      <artifact path="nyu-device-roster/src/lib/audit/syncEvents.ts" kind="service" symbol="recordAllowlistChangeEvent" lines="1-140" reason="Illustrates how governance events persist to `sync_events`; reuse patterns for chip add/remove actions."></artifact>
+      <artifact path="nyu-device-roster/src/models/Device.ts" kind="model" symbol="DeviceModel" lines="1-80" reason="Defines filterable fields (status, condition, offboardingStatus) chips should target."></artifact>
+      <artifact path="nyu-device-roster/src/components/SyncStatusBanner.tsx" kind="component" symbol="SyncStatusBanner" lines="1-120" reason="Accessible component pattern for live announcements and color coding similar to chip feedback."></artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="next" version="16.0.1" reason="App Router runtime hosting dashboard components and new chip/halo modules." />
+        <package name="react" version="19.2.0" reason="Enables hook-based chip state, virtualization, and animation logic." />
+        <package name="next-auth" version="^4.24.13" reason="Ensures only authenticated managers can manipulate filters and chips." />
+        <package name="mongoose" version="^8.19.3" reason="Backs device data the filters target; indexes must remain aligned with filter options." />
+        <package name="pino" version="^10.1.0" reason="Structured logging for FILTER_CHIP events and halo instrumentation." />
+        <package name="zod" version="^4.1.12" reason="Validates `/api/devices` filter payloads server-side before applying queries." />
+        <package name="vitest" version="^4.0.7" reason="Unit/component testing for chip reducers, halo utilities, and logging helpers." />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Serialize chips into `/api/devices` query params and React Query cache keys—no bespoke fetch pipelines.</constraint>
+    <constraint>Reuse anonymization helper + presets from Stories C4/C6 so chip counts and halo highlights respect masked fields.</constraint>
+    <constraint>Respect instrumentation budget: interactions must remain &lt;200&nbsp;ms; log deviations via performance hooks from Story C5.</constraint>
+    <constraint>All chip add/remove events must emit structured logs and audit entries with actor, requestId, and filter payload.</constraint>
+    <constraint>Halo animations must honor prefers-reduced-motion media queries and avoid interfering with virtualization scroll performance.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="FilterChipsBar" kind="component" signature="<FilterChipsBar filters={activeFilters} onRemove={...} onReorder={...} />" >
+      <path>nyu-device-roster/src/app/(manager)/components/FilterChipsBar.tsx</path>
+    </interface>
+    <interface name="useDeviceGrid" kind="hook" signature="useDeviceGrid({ filters, search }): { rows, meta, setFilter, removeFilter }" >
+      <path>nyu-device-roster/src/app/(manager)/devices/hooks/useDeviceGrid.ts</path>
+    </interface>
+    <interface name="GET /api/devices" kind="REST" signature="GET /api/devices?filters=status:eq:Active&filters=condition:eq:Good → { data: { devices, meta }, error: null }" >
+      <path>nyu-device-roster/src/app/api/devices/route.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Follow Vitest + React Testing Library for component logic, leverage Playwright for keyboard-only chip manipulation and halo verification, and reuse integration test layout under `tests/integration`.</standards>
+    <locations>nyu-device-roster/tests/unit/app; nyu-device-roster/tests/unit/lib; nyu-device-roster/tests/integration</locations>
+    <ideas>
+      <idea ac="AC1">Unit test chip reducer ensuring add/remove/reorder operations keep query params and counts in sync with mock grid data.</idea>
+      <idea ac="AC2">Playwright spec applying multi-field filters verifies halo animation toggles and respects prefers-reduced-motion.</idea>
+      <idea ac="AC3">Integration test posting filters to `/api/devices` asserts Zod validation, React Query cache reuse, and FILTER_CHIP log entries.</idea>
+    </ideas>
+  </tests>
+</story-context>

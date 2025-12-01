@@ -8,6 +8,7 @@ import type {
   DeviceGridQueryState,
 } from "@/lib/devices/grid-query";
 import type { DeviceColumn, DeviceColumnId } from "../types";
+import type { DeviceGridDensity } from "./DeviceGrid";
 import { countActiveFilters, toggleListValue } from "../utils/filter-helpers";
 
 type GridControlsProps = {
@@ -17,6 +18,8 @@ type GridControlsProps = {
   onFilterChange: (filters: Partial<DeviceGridQueryFilters>) => void;
   onColumnToggle: (columnId: DeviceColumnId, visible: boolean) => void;
   onResetColumns: () => void;
+  density: DeviceGridDensity;
+  onDensityChange: (density: DeviceGridDensity) => void;
   announce: (message: string) => void;
 };
 
@@ -27,6 +30,8 @@ export const GridControls = ({
   onFilterChange,
   onColumnToggle,
   onResetColumns,
+  density,
+  onDensityChange,
   announce,
 }: GridControlsProps) => {
   const statusOptions = useMemo(
@@ -76,7 +81,7 @@ export const GridControls = ({
           <input
             type="search"
             className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            placeholder="Search by Device ID, owner, or status"
+            placeholder="Search by serial, owner, or status"
             value={state.filters.search ?? ""}
             onChange={(event) => {
               onFilterChange({ search: event.target.value || undefined });
@@ -226,6 +231,11 @@ export const GridControls = ({
                   }}
                 />
                 <span className="font-medium">{column.label}</span>
+                {column.governance?.anonymized && (
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-indigo-200">
+                    Obscured
+                  </span>
+                )}
               </label>
             );
           })}
@@ -240,6 +250,37 @@ export const GridControls = ({
         >
           Reset columns
         </button>
+      </div>
+
+      <div className="mt-6 border-t border-white/10 pt-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-200">Density</p>
+        <div className="mt-3 grid gap-2 md:grid-cols-2">
+          {[
+            { id: "comfortable" as DeviceGridDensity, label: "Comfortable", detail: "56px rows" },
+            { id: "compact" as DeviceGridDensity, label: "Compact", detail: "44px rows" },
+          ].map((option) => {
+            const active = density === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => {
+                  onDensityChange(option.id);
+                  announce(`Grid density set to ${option.label}`);
+                }}
+                aria-pressed={active}
+                className={`flex flex-col items-start rounded-xl border px-4 py-3 text-left text-sm transition ${
+                  active
+                    ? "border-indigo-400 bg-indigo-500/20 text-white"
+                    : "border-white/15 bg-white/5 text-white/80 hover:border-white/30"
+                }`}
+              >
+                <span className="font-semibold">{option.label}</span>
+                <span className="text-xs text-white/70">{option.detail}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </section>
   );

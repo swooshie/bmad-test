@@ -1,0 +1,94 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2</storyId>
+    <title>Persist Dynamic Columns in MongoDB</title>
+    <status>Approved</status>
+    <generatedAt>2025-11-24T16:20:00Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-2-persist-dynamic-columns-in-mongodb.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA><![CDATA[As a data engineer]]></asA>
+    <iWant><![CDATA[I want MongoDB to store dynamic columns with consistent naming conventions]]></iWant>
+    <soThat><![CDATA[So that downstream services can rely on predictable keys even as the sheet evolves]]></soThat>
+    <tasks><![CDATA[
+1. **Implement column registry service (AC #1, #3)** — Extend `lib/google-sheets.ts` with a header-map helper, add `models/ColumnDefinition.ts`, and wire registry + device writes through the sync worker session so schema diffs emit metrics.
+   - Normalize ordered headers, detect renamed columns, and persist registry entries with `{ sheetId, columnKey, lastSeenAt }` snapshots.
+   - Ship migration/CLI support so operators can backfill the registry before enabling UI consumption.
+2. **Enhance device normalization for dynamic attributes (AC #2, #3)** — Teach `workers/sync/transform.ts` and `models/Device.ts`/`schemas/device.ts` to capture unknown fields into a `dynamicAttributes` map and keep wildcard indexes performant.
+   - Include `dynamicAttributes` values in `contentHash`, enforce 100-column guard rails, and log anomalies when header counts drift.
+   - Provide backfill tooling to hydrate legacy documents without dropping serial indexes.
+3. **Expose registry metadata via APIs/telemetry (AC #4)** — Update `app/api/devices/device-query-service.ts` and a new `/api/devices/columns` endpoint to return registry-driven columns plus `columnsVersion`, and emit `SYNC_COLUMNS_CHANGED` events that light up `SyncStatus`.
+   - Ensure React grid hooks (`useDeviceGrid`, `SyncStatusBanner`) consume the new metadata without breaking anonymization presets.
+4. **Testing + docs alignment (AC #5)** — Expand Vitest + integration + Playwright suites for 5/20/100-column cases, and update runbooks/development guide with registry maintenance steps and verification commands.
+    ]]></tasks>
+  </story>
+
+  <acceptanceCriteria><![CDATA[
+1. **Header registry persistence** – Sync worker captures ordered headers each run, normalizes them to snake_case keys, persists registry entries (`sheetId`, `columnKey`, `headerLabel`, `lastSeenAt`), and emits `SYNC_COLUMNS_CHANGED` telemetry when diffs occur.
+2. **Device schema + indexing** – `models/Device.ts` and `schemas/device.ts` expose `dynamicAttributes` plus optional `columnDefinitions` references, and add wildcard/hashed indexes that keep queries performant up to 100 columns without breaking serial uniqueness.
+3. **Registry + device transactions** – `workers/sync/index.ts` writes column registry updates and device documents in the same Mongo session (with copy-on-write fallback) so schema/data stay synchronized if exceptions occur.
+4. **API + telemetry output** – `/api/devices` (and optional `/api/devices/columns`) returns registry-driven `columns` metadata plus `columnsVersion`, and `SyncStatus` banner cues change when column diffs appear.
+5. **Testing + documentation** – Vitest, integration, and UI tests cover 5/20/100-column scenarios; runbooks + dev guide document registry maintenance and verification commands.
+    ]]></acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/PRD.md" title="BMAD Demo NodeJS Project – Product Requirements" section="Project-Type Specific Requirements" snippet="Sync must ingest every Google Sheet column, treat serial as the immutable key, and keep `/api/devices` responses aligned so dashboards never need code changes when operators add metadata."/>
+      <doc path="docs/epics.md" title="Epic 2: Dynamic Column Propagation" section="Story EP2.2" snippet="Story EP2.2 demands that MongoDB persist dynamic columns with snake_case naming, optional columnDefinitions, and indexes that keep queries performant as the sheet evolves."/>
+      <doc path="docs/tech-spec-epic-2.md" title="Epic Technical Specification" section="Services and Modules" snippet="Defines the header discovery service, column registry model, sync worker enhancements, and `/api/devices` updates needed to propagate column metadata through the stack."/>
+      <doc path="docs/runbook/sync-operations.md" title="Sync Operations Runbook" section="Normalization &amp; Upsert Rules" snippet="Transformer maps headers to canonical fields, enforces deterministic casting, and runs compound upserts with logging + sync_events so registry/device writes stay trustworthy."/>
+      <doc path="docs/api-contracts.md" title="API Contracts" section="/api/devices" snippet="Responses must include `{ data: { devices }, meta }` envelopes; dynamic column metadata attaches to the same route and feeds governance telemetry hooks."/>
+      <doc path="docs/architecture.md" title="Architecture" section="Project Structure &amp; Epic Mapping" snippet="Maps Epic B modules to `workers/sync`, `lib/google-sheets.ts`, and `models/Device.ts`, clarifying where to add registry models, API routes, and governance hooks."/>
+    </docs>
+    <code>
+      <codeArtifact path="nyu-device-roster/src/lib/google-sheets.ts" kind="service" symbol="fetchSheetData" lines="1-200" reason="Central Google Sheets client streaming rows + ordered headers with retry metrics; foundation for the new column registry helper."/>
+      <codeArtifact path="nyu-device-roster/src/workers/sync/transform.ts" kind="worker" symbol="normalizeSheetRows" lines="1-200" reason="Converts sheet rows into canonical device payloads, maps aliases, and builds `contentHash`; will emit `dynamicAttributes`."/>
+      <codeArtifact path="nyu-device-roster/src/workers/sync/index.ts" kind="worker" symbol="applyDeviceUpserts" lines="1-200" reason="Controls audits, Mongo sessions, and bulk upserts plus SyncEvent logging—entry point for transacting registry + device writes together."/>
+      <codeArtifact path="nyu-device-roster/src/app/api/devices/device-query-service.ts" kind="API" symbol="queryDeviceGrid" lines="1-200" reason="Builds filters and returns grid metadata + `DEVICE_COLUMNS`; needs to consume registry-backed columns for downstream UI."/>
+      <codeArtifact path="nyu-device-roster/src/lib/devices/columns.ts" kind="config" symbol="DEVICE_COLUMNS" lines="1-120" reason="Static column definitions + versioning used by the grid; reference for shaping registry-fed metadata."/>
+    </code>
+    <dependencies>
+      <dependency ecosystem="node" name="next" version="16.0.1" reason="App Router runtime hosting API routes and dashboard pages that will consume column metadata." />
+      <dependency ecosystem="node" name="react" version="19.2.0" reason="UI layer for `(manager)/devices` grid where registry-fed columns must render without code changes." />
+      <dependency ecosystem="node" name="mongoose" version="8.19.3" reason="ODM powering `DeviceModel` and future `ColumnDefinition` persistence plus Mongo transactions required by AC #3." />
+      <dependency ecosystem="node" name="@tanstack/react-query" version="5.90.10" reason="Data access + caching for device grid hooks; columns metadata will flow through React Query caches." />
+      <dependency ecosystem="node" name="pino" version="10.1.0" reason="Structured logging for sync + telemetry events (`SYNC_COLUMNS_CHANGED`, audit trails)." />
+      <dependency ecosystem="node" name="next-auth" version="4.24.13" reason="Auth/session enforcement for `/api/devices` and upcoming `/api/devices/columns` endpoint." />
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Mongo transactions + copy-on-write safeguards from the sync runbook still apply: registry + device writes must share a session and respect SyncEvent logging, falling back gracefully if transactions are unavailable.</constraint>
+    <constraint>API responses must retain `{ data, meta, error }` envelopes and run through NextAuth middleware, so new `/api/devices/columns` endpoints need to reuse `withSession` and audit logging helpers.</constraint>
+    <constraint>Maintain project structure boundaries documented in architecture: workers stay under `workers/sync`, shared helpers in `lib/`, models in `models/`, and UI logic in `(manager)/devices` without new folders.</constraint>
+    <constraint>Testing standards require running `npm run verify-sync-indexes`, `npm run test`, and Playwright suites before shipping schema/index changes to ensure no regressions.</constraint>
+    <constraint>Sync worker must keep deterministic casting (title-cased status/condition, snake_case unknown columns) and continue skipping rows without serials to preserve audit integrity.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="POST /api/sync/run" kind="REST" signature="POST /api/sync/run (cron headers or authed session)" path="nyu-device-roster/src/app/api/sync/run/route.ts" />
+    <interface name="GET /api/devices" kind="REST" signature="GET /api/devices?search=&amp;page=&amp;pageSize=&amp;sort=" path="nyu-device-roster/src/app/api/devices/route.ts" />
+    <interface name="GET /api/devices/columns" kind="REST" signature="GET /api/devices/columns → { data: { columns, version } }" path="nyu-device-roster/src/app/api/devices" />
+    <interface name="SyncEventModel" kind="Mongoose model" signature="SyncEventModel.create({ eventType, metadata, route, method, reason })" path="nyu-device-roster/src/models/SyncEvent.ts" />
+    <interface name="DeviceModel" kind="Mongoose model" signature="DeviceModel.bulkWrite([{ updateOne: { filter, update, upsert } }])" path="nyu-device-roster/src/models/Device.ts" />
+  </interfaces>
+
+  <tests>
+    <standards>Vitest covers Node services and workers, Mongo-driven integration suites live under `nyu-device-roster/tests/integration`, and Playwright accessibility/Lighthouse runs enforce UI fidelity before shipping schema/index changes. Always run `npm run verify-sync-indexes`, `npm run test`, and `npm run test:accessibility` prior to merging registry work.</standards>
+    <locations>
+      <location>nyu-device-roster/tests/unit/**/*.test.ts</location>
+      <location>nyu-device-roster/tests/integration/**/*.spec.ts</location>
+      <location>nyu-device-roster/tests/performance/**/*.mjs</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Unit-test header normalization + registry diff logic (5/20/100-column fixtures) to ensure `columnsAdded/Removed` telemetry matches sheet changes.</idea>
+      <idea ac="2">Integration test `DeviceModel` upserts with new `dynamicAttributes` fields to confirm wildcard indexes remain performant and serial uniqueness is untouched.</idea>
+      <idea ac="3">Transaction fallback test simulating Mongo session failure to verify copy-on-write recovery and SyncEvent logging stay consistent.</idea>
+      <idea ac="4">Playwright scenario verifying `/api/devices` + `(manager)/devices` grid render registry-driven columns while `SyncStatusBanner` surfaces column-change cues.</idea>
+      <idea ac="5">Smoke workflow running `npm run verify-sync-indexes` + `npm run test` after registry migrations to ensure CLI/backfill scripts leave collections consistent.</idea>
+    </ideas>
+  </tests>
+</story-context>

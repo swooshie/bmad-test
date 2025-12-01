@@ -57,6 +57,7 @@ export const GET = withSession(async (request) => {
       requestId,
       anonymized,
       total: result.meta.total,
+      columnsVersion: result.meta.columnsVersion,
     });
 
     void recordFilterChipUpdatedEvent({
@@ -66,12 +67,16 @@ export const GET = withSession(async (request) => {
       total: result.meta.total,
       requestId,
       userEmail: null,
+      columnsVersion: result.meta.columnsVersion,
     });
+
+    const devices = anonymized ? result.devices.map((device) => anonymizeDeviceRow(device, true)) : result.devices;
 
     return NextResponse.json(
       {
         data: {
-          devices: anonymized ? result.devices.map((device) => anonymizeDeviceRow(device, true)) : result.devices,
+          devices,
+          columns: result.columns,
         },
         meta: result.meta,
         error: null,

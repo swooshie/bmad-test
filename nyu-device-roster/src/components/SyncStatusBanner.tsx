@@ -18,8 +18,18 @@ const statusMessage = (status: SyncStatusState) => {
       return "Sync pipeline is idle.";
     case "running":
       return `Manual sync started by ${status.requestedBy ?? "an operator"}…`;
-    case "success":
-      return `Last sync succeeded (added ${status.metrics.added}, updated ${status.metrics.updated}, unchanged ${status.metrics.unchanged}).`;
+    case "success": {
+      const schemaChanges = (status.metrics.columnsAdded ?? 0) + (status.metrics.columnsRemoved ?? 0);
+      const versionNote =
+        status.metrics.columnsVersion && schemaChanges > 0
+          ? ` version ${status.metrics.columnsVersion}`
+          : "";
+      const columnChanges =
+        schemaChanges > 0
+          ? ` Column registry updated${versionNote} (added ${status.metrics.columnsAdded ?? 0}, removed ${status.metrics.columnsRemoved ?? 0}, total ${status.metrics.columnTotal ?? 0}).`
+          : "";
+      return `Last sync succeeded (added ${status.metrics.added}, updated ${status.metrics.updated}, unchanged ${status.metrics.unchanged}, serial conflicts ${status.metrics.serialConflicts}, legacy IDs updated ${status.metrics.legacyIdsUpdated}).${columnChanges}`;
+    }
     case "error":
       return `Last sync failed (${status.errorCode}): ${status.message}`;
     default:

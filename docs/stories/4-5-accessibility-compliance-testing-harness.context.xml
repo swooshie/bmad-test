@@ -1,0 +1,95 @@
+<story-context id="story-context/4-5-accessibility-compliance-testing-harness" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>5</storyId>
+    <title>accessibility-compliance-testing-harness</title>
+    <status>ready-for-dev</status>
+    <generatedAt>{{date}}</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/4-5-accessibility-compliance-testing-harness.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As a quality lead</asA>
+    <iWant>I want automated and manual accessibility checks</iWant>
+    <soThat>so that we can prove the dashboard meets WCAG AA before demos</soThat>
+    <tasks>
+      - CI accessibility audits: add axe-core coverage for dashboard, grid, anonymization toggle, and sync status; add Lighthouse accessibility gate with thresholds documented.
+      - Manual checklist: keyboard navigation, screen reader labels, and high-contrast verification steps published and attached to runbook.
+      - Audit logging: emit entries for each automated/manual audit with timestamp, runner, target page, and pass/fail summary through Pino/App Engine pipeline.
+      - Testing & verification: validate CI jobs locally and in pipeline, ensure artifacts persist, and confirm audit log entries stored with required fields.
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    - Integrate axe-core and Lighthouse accessibility audits into CI with thresholds documented.
+    - Provide manual checklist covering keyboard navigation, screen reader labels, and high-contrast verification per spec.
+    - Record accessibility audit results in audit log with timestamp, tester, and pass/fail summary.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      - path: docs/epics.md
+        title: BMAD Demo Epics
+        section: Story [D5]: Accessibility compliance & testing harness
+        snippet: Defines ACs for integrating axe-core and Lighthouse in CI, providing manual accessibility checklist, and logging audit outcomes.
+      - path: docs/PRD.md
+        title: Product Requirements Document
+        section: Accessibility
+        snippet: Requires WCAG 2.1 AA contrast, keyboard navigation, and screen reader labels for anonymization and sync controls.
+      - path: docs/architecture.md
+        title: Architecture
+        section: Testing Layout & Logging Strategy
+        snippet: Describes unit/integration test locations, CI scripts, Pino structured logging with audit tags, and expectations for preserving artifacts.
+      - path: docs/ux-design-specification.md
+        title: UX Design Specification
+        section: Accessibility cues and interaction states
+        snippet: Details keyboard focus states, screen-reader labels for anonymization toggle and sync controls, and responsive behavior expectations for manager dashboard surfaces.
+      - path: docs/performance-runbook.md
+        title: Performance Runbook
+        section: Lighthouse and runtime performance targets
+        snippet: Outlines Lighthouse gating thresholds, profiling steps, and remediation playbook to keep dashboard interactions under 200 ms alongside accessibility metrics.
+      - path: docs/governance-banner-runbook.md
+        title: Governance Banner Runbook
+        section: Governance and reminders
+        snippet: Documents governance cues and banner behavior that must remain accessible, including messaging, contrast, and anonymization reminders.
+      - path: docs/sprint-status.yaml
+        title: Sprint Status
+        section: development_status
+        snippet: Tracks story 4-5 as ready-for-dev; serves as traceability reference for context generation state.
+    </docs>
+    <code>
+      - No implementation code available in repository; document-only workspace. Code references will be added once source modules exist.
+    </code>
+    <dependencies>
+      - Node/Next.js stack with NextAuth, TanStack React Query, Pino logging, and Google Cloud Tasks/App Engine per architecture guidelines.
+      - Testing/tooling: axe-core, Lighthouse, Playwright/Vitest per architecture testing layout.
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - Preserve structured audit logging via Pino with requestId/user context; accessibility audit results must flow through same pipeline.
+    - Honor performance targets (sub-2s load, sub-200 ms interactions) while running audits; tune Lighthouse config accordingly.
+    - Use documented testing layout: unit tests co-located; integration/regression under tests/integration with fixtures.
+    - Store artifacts using project-relative paths; avoid secrets in logs or reports.
+  </constraints>
+
+  <interfaces>
+    - Audit logging schema: include timestamp, runner/tester identity, target page or route, tool used (axe-core/Lighthouse/manual), and pass/fail summary; persist via existing Pino/App Engine logging pipeline.
+  </interfaces>
+
+  <tests>
+    <standards>
+      Follow architecture test layout: unit tests co-located, integration tests under tests/integration, fixtures under tests/fixtures; CI to run accessibility checks with gating.
+    </standards>
+    <locations>
+      - tests/integration for accessibility journeys (Playwright + axe-core/Lighthouse)
+      - co-located unit tests for audit logging helpers
+    </locations>
+    <ideas>
+      - AC1: Playwright + axe-core on dashboard/grid/toggle/sync status pages; Lighthouse accessibility score threshold enforced.
+      - AC2: Manual checklist document verifies keyboard navigation and screen reader labels for anonymization/refresh controls; attach artifact to runbook.
+      - AC3: Integration test capturing audit log entry per audit run with timestamp, tester, target page, and result; validate log shape through mock transport or log capture.
+    </ideas>
+  </tests>
+</story-context>

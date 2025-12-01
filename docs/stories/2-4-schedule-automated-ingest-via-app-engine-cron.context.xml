@@ -1,0 +1,115 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>B</epicId>
+    <storyId>2.4</storyId>
+    <title>Schedule automated ingest via App Engine cron</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-11</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-4-schedule-automated-ingest-via-app-engine-cron.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As a reliability engineer</asA>
+    <iWant>I want an App Engine cron job that triggers the Google Sheets → MongoDB ingest pipeline every two minutes</iWant>
+    <soThat>so the roster stays current even without manual refreshes</soThat>
+    <tasks><task-list>
+  <task id="T1" ac="AC1" artifact="cron.yaml">Define App Engine cron (or Cloud Scheduler config) hitting /internal/sync or /api/sync/run every two minutes with signed service credentials.</task>
+  <task id="T1a" parent="T1" artifact="docs/runbook/sync-operations.md">Document how to deploy/update the cron schedule plus cadence/flag changes for demo operators.</task>
+  <task id="T2" ac="AC1,AC2" artifact="app/api/sync/run/route.ts">Enhance /api/sync/run to verify service headers, read config cadence/enable flags, and enqueue the shared sync worker with triggerType=scheduled.</task>
+  <task id="T3" ac="AC2,AC3" artifact="workers/sync/index.ts">Implement overlap guard (lock/queue) so scheduled runs skip or reschedule when a prior run is still processing, emitting structured logs.</task>
+  <task id="T4" ac="AC3,AC4,AC5" artifact="workers/sync/index.ts">Tag scheduled runs with runId, trigger metadata, and structured metrics (duration, rows) persisted to sync_events via models/SyncEvent.ts.</task>
+  <task id="T5" ac="AC4,AC5" artifact="models/SyncEvent.ts">Ensure schema stores trigger type, anonymization state, counts, and error codes for scheduled runs, feeding dashboards and UI banners.</task>
+  <task id="T6" ac="AC5" artifact="lib/logging.ts">Emit Pino logs containing triggerType, runId, requestId, and SLA metrics for Cloud Monitoring charts.</task>
+  <task id="T7" ac="AC2,AC5,AC6" artifact="models/Config.ts">Add config loader exposing sync.enabled and sync.intervalMinutes for API/worker gating.</task>
+  <task id="T8" ac="AC5,AC6" artifact="tests">Add unit/integration tests covering config gating, overlap handling, audit persistence, and service-account authentication.</task>
+</task-list></tasks>
+  </story>
+
+  <acceptanceCriteria><criteria>
+  <criterion id="AC1">Cloud Scheduler/App Engine cron fires every two minutes (configurable) using signed service headers and invokes /internal/sync or /api/sync/run to enqueue the shared worker.</criterion>
+  <criterion id="AC2">Cron respects enable/disable flag and cadence stored in the config collection; disabling logs a skip while leaving manual refresh intact.</criterion>
+  <criterion id="AC3">Overlap guard prevents concurrent runs—if a run is still in progress, the new trigger logs skipped_due_to_inflight and exits without duplicating ingest.</criterion>
+  <criterion id="AC4">Each scheduled run records sync_events entry with runId, trigger=scheduled, anonymization state, counts, duration, and error summary plus structured logs.</criterion>
+  <criterion id="AC5">Scheduled path reuses Stories 2.1–2.3 modules, meets <60s SLA, and surfaces FR-012 error envelopes to status banner/UI observers.</criterion>
+  <criterion id="AC6">Automated tests cover config gating, overlap handling, audit logging, and service-account authentication pathways.</criterion>
+</criteria></acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+  <artifact path="docs/epics.md" title="Epic B – Sync Automation" section="Story B4">
+    Epic story B4 spells out the cron requirement: hit `/internal/sync` every two minutes, respect enable/disable flag, skip overlapping executions, and log runId + row metrics for governance (docs/epics.md:133-140).
+  </artifact>
+  <artifact path="docs/PRD.md" title="PRD" section="FR-004 Scheduled Sync">
+    FR-004 mandates an automated ingest cadence where cron triggers the sync endpoint, records duration/rows/anonymization state, and keeps demo data fresh without manual intervention (docs/PRD.md:160-174).
+  </artifact>
+  <artifact path="docs/PRD.md" title="PRD" section="Performance NFR">
+    Performance requirements cap scheduled sync windows at 60 seconds for ~1k rows and demand alerting on failures, guiding SLA enforcement for the cron worker (docs/PRD.md:176-190).
+  </artifact>
+  <artifact path="docs/architecture.md" title="Architecture" section="Sync Pipeline">
+    Architecture diagram shows Cloud Scheduler → Cloud Tasks → `/api/sync/run` with Secret Manager headers, shared workers, and structured logging, reinforcing reuse for automated runs (docs/architecture.md:230-270).
+  </artifact>
+  <artifact path="docs/architecture.md" title="Architecture" section="Data Architecture">
+    Data architecture defines `config` (cadence metadata) and `sync_events` (audit trail) collections that scheduled runs must read/write to honor feature flags and governance (docs/architecture.md:230-250).
+  </artifact>
+  <artifact path="docs/stories/2-3-implement-manual-sync-endpoint-with-optimistic-status.md" title="Story 2.3" section="Implementation Alignment">
+    Story 2.3 captures how manual triggers already use shared workers, logging, and sync_events; scheduled runs must mirror the same modules and status propagation to avoid divergent telemetry (docs/stories/2-3-implement-manual-sync-endpoint-with-optimistic-status.md:37-56).
+  </artifact>
+  <artifact path="docs/runbook/sync-operations.md" title="Sync Operations Runbook" section="Calling the Fetch Module">
+    Runbook describes how `/api/sync/run` calls the shared fetch helper and logs metrics, providing the operational baseline that cron-triggered runs should follow when wiring automation (docs/runbook/sync-operations.md:1-60).
+  </artifact>
+</docs>
+    <code>
+  <artifact path="cron.yaml" kind="config" symbol="sync-cron" lines="1-80" reason="Holds the App Engine/Cloud Scheduler job definition targeting `/internal/sync` with cadence + header configuration."></artifact>
+  <artifact path="nyu-device-roster/src/app/api/sync/run/route.ts" kind="api" symbol="POST /api/sync/run" lines="1-200" reason="Endpoint invoked by cron; must enforce service headers, config gating, and worker enqueue semantics."></artifact>
+  <artifact path="nyu-device-roster/src/workers/sync/index.ts" kind="worker" symbol="runDeviceSync" lines="1-220" reason="Shared worker orchestrating fetch → normalize → upsert flow with SyncEvent logging and metrics."></artifact>
+  <artifact path="nyu-device-roster/src/workers/sync/transform.ts" kind="service" symbol="normalizeSheetRows" lines="1-200" reason="Transformer ensures scheduled runs reuse existing normalization, hashing, and anomaly tracking."></artifact>
+  <artifact path="nyu-device-roster/src/models/SyncEvent.ts" kind="model" symbol="SyncEventModel" lines="1-160" reason="Audit schema capturing trigger type, runId, row counts, and status for each scheduled execution."></artifact>
+  <artifact path="nyu-device-roster/src/models/Config.ts" kind="model" symbol="ConfigModel" lines="1-200" reason="Configuration store where sync enable flag and cadence metadata will live for cron gating."></artifact>
+  <artifact path="nyu-device-roster/src/lib/logging.ts" kind="utility" symbol="logger" lines="1-200" reason="Pino logger used by API/worker layers to emit structured events consumed by observability dashboards."></artifact>
+  <artifact path="nyu-device-roster/src/lib/google-sheets.ts" kind="service" symbol="fetchSheetData" lines="1-200" reason="Sheets client the scheduled worker must reuse for credentialed fetches and error mapping."></artifact>
+  <artifact path="nyu-device-roster/tests/integration/sync.spec.ts" kind="test" symbol="sync integration suite" lines="1-200" reason="Integration tests that will cover scheduled vs manual paths, overlap handling, and audit logging."></artifact>
+  <artifact path="nyu-device-roster/scripts/verify-sync-indexes.ts" kind="script" symbol="verify-sync-indexes" lines="1-160" reason="Operational script ensuring indexes stay healthy before cron increases ingest frequency."></artifact>
+</code>
+    <dependencies>
+  <ecosystem name="node">
+    <package name="next" version="16.0.1" reason="App Router runtime hosting `/api/sync/run` and internal cron endpoints."></package>
+    <package name="next-auth" version="^4.24.13" reason="Session + service-token validation shared between manual and scheduled sync routes."></package>
+    <package name="mongoose" version="^8.19.3" reason="Models for `config`, `devices`, and `sync_events` leveraged by scheduled runs."></package>
+    <package name="@google-cloud/secret-manager" version="^6.1.1" reason="Sources cron service tokens and Sheets credentials without embedding secrets."></package>
+    <package name="pino" version="^10.1.0" reason="Structured logs capturing runId, triggerType, and SLA metrics for observability."></package>
+    <package name="zod" version="^4.1.12" reason="Validation shared by config loaders and sync payload schemas to keep cron inputs strict."></package>
+  </ecosystem>
+</dependencies>
+  </artifacts>
+
+  <constraints>
+  <constraint>Scheduled syncs must reuse the same `runDeviceSync` + normalization pipeline delivered in Stories 2.1–2.3; no duplicate fetch or transform logic.</constraint>
+  <constraint>All cron invocations require service-account headers sourced from Secret Manager; `/api/sync/run` must reject requests lacking the signed token.</constraint>
+  <constraint>Configuration flag/cadence must originate from the `config` collection (cached with TTL) so operators can pause or adjust frequency without redeploying.</constraint>
+  <constraint>Overlap prevention must log skipped runs with reason and store telemetry in `sync_events` to satisfy governance traceability.</constraint>
+  <constraint>Structured logging via `lib/logging.ts` needs to include `triggerType`, `runId`, `durationMs`, and `rowsProcessed` to keep dashboards accurate.</constraint>
+</constraints>
+  <interfaces>
+  <interface name="POST /api/sync/run" kind="REST" signature="POST /api/sync/run → { data: { counts, duration }, error: null } (requires X-Appengine-Cron or signed token)" >
+    <path>nyu-device-roster/src/app/api/sync/run/route.ts</path>
+  </interface>
+  <interface name="CloudSchedulerJob" kind="config" signature="cron.yaml → job: { schedule: '*/2 * * * *', target: /internal/sync, headers: { X-Appengine-Cron: token } }" >
+    <path>cron.yaml</path>
+  </interface>
+  <interface name="runDeviceSync" kind="function" signature="runDeviceSync({ sheetId, requestId? }): Promise<{ rowCount; upsert; anomalies }>" >
+    <path>nyu-device-roster/src/workers/sync/index.ts</path>
+  </interface>
+  <interface name="SyncEvent" kind="model" signature="SyncEvent { eventType: 'SYNC_RUN'; metadata: { trigger: 'scheduled', runId, added, updated, unchanged, durationMs, anomalies } }" >
+    <path>nyu-device-roster/src/models/SyncEvent.ts</path>
+  </interface>
+  <interface name="Config.syncSettings" kind="document" signature="Config { allowlist: string[]; devicesSheetId: string; sync: { enabled: boolean; intervalMinutes: number } }" >
+    <path>nyu-device-roster/src/models/Config.ts</path>
+  </interface>
+</interfaces>
+  <tests>
+    <standards>Follow Vitest unit suites for API + worker logic and Playwright/supertest integration specs; rely on mongodb-memory-server to simulate overlap scenarios safely.</standards>
+    <locations>tests/unit/app/api/sync/run.test.ts; tests/integration/sync.spec.ts; tests/unit/models/config.test.ts</locations>
+    <ideas><idea ac="AC1">Unit test verifying `/api/sync/run` rejects missing cron headers and enqueues worker when provided with valid service token.</idea><idea ac="AC2">Config gating test toggling `sync.enabled=false` to ensure API logs skip and returns 202 without queuing work.</idea><idea ac="AC3">Integration test simulating back-to-back cron invocations to confirm overlap guard logs `skipped_due_to_inflight` and only one SyncEvent is created.</idea><idea ac="AC4">Audit test asserting scheduled runs persist `trigger='scheduled'`, runId, counts, and anonymization state in `sync_events`.</idea><idea ac="AC5">Performance test measuring worker duration stays under SLA and that FR-012 error codes propagate to status banner payloads.</idea><idea ac="AC6">Service-auth regression test ensuring invalid cron secret raises 401 and no worker execution occurs.</idea></ideas>
+  </tests>
+</story-context>

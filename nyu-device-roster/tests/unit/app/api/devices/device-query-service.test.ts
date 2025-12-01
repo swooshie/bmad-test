@@ -1,12 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { queryDeviceGrid } from "@/app/api/devices/device-query-service";
+import { buildDynamicColumns, queryDeviceGrid } from "@/app/api/devices/device-query-service";
 import { DEFAULT_DEVICE_GRID_STATE } from "@/lib/devices/grid-query";
 import type { DeviceAttributes } from "@/models/Device";
+import type { ColumnDefinitionAttributes } from "@/models/ColumnDefinition";
 
 const dataset: DeviceAttributes[] = [
   {
-    deviceId: "demo-001",
+    serial: "demo-001",
+    legacyDeviceId: "demo-001",
     sheetId: "sheet-a",
     assignedTo: "Alex",
     status: "Assigned",
@@ -19,7 +21,8 @@ const dataset: DeviceAttributes[] = [
     updatedAt: new Date("2025-01-10T12:00:00Z"),
   },
   {
-    deviceId: "demo-002",
+    serial: "demo-002",
+    legacyDeviceId: "demo-002",
     sheetId: "sheet-a",
     assignedTo: "Brooke",
     status: "Available",
@@ -32,7 +35,8 @@ const dataset: DeviceAttributes[] = [
     updatedAt: new Date("2025-01-09T12:00:00Z"),
   },
   {
-    deviceId: "demo-003",
+    serial: "demo-003",
+    legacyDeviceId: "demo-003",
     sheetId: "sheet-b",
     assignedTo: "Casey",
     status: "Assigned",
@@ -113,6 +117,18 @@ vi.mock("@/lib/db", () => ({
   default: vi.fn(() => Promise.resolve()),
 }));
 
+vi.mock("@/lib/config", () => ({
+  __esModule: true,
+  ensureRuntimeConfig: vi.fn(() =>
+    Promise.resolve({
+      config: {
+        devicesSheetId: "sheet-a",
+      },
+      secrets: {},
+    })
+  ),
+}));
+
 vi.mock("@/models/Device", () => {
   return {
     __esModule: true,
@@ -129,12 +145,25 @@ vi.mock("@/models/Device", () => {
   };
 });
 
+vi.mock("@/models/ColumnDefinition", () => {
+  return {
+    __esModule: true,
+    default: {
+      find: vi.fn(() => ({
+        sort: () => ({
+          lean: async () => [] as ColumnDefinitionAttributes[],
+        }),
+      })),
+    },
+  };
+});
+
 describe("queryDeviceGrid (mocked)", () => {
   it("returns paginated rows sorted by timestamp", async () => {
     const result = await queryDeviceGrid({ ...DEFAULT_DEVICE_GRID_STATE, pageSize: 2 });
 
     expect(result.devices).toHaveLength(2);
-    expect(result.devices[0].deviceId).toBe("demo-001");
+    expect(result.devices[0].serial).toBe("demo-001");
     expect(result.meta.total).toBe(3);
     expect(result.meta.totalPages).toBe(2);
   });
@@ -148,5 +177,45 @@ describe("queryDeviceGrid (mocked)", () => {
     expect(result.devices).toHaveLength(1);
     expect(result.devices[0].assignedTo).toBe("Casey");
     expect(result.meta.appliedFilters.status).toEqual(["Assigned"]);
+  });
+});
+
+describe("buildDynamicColumns", () => {
+  it("merges dynamic registry entries with base columns", () => {
+    const now = new Date();
+    const registry: ColumnDefinitionAttributes[] = [
+      {
+        sheetId: "sheet-a",
+        columnKey: "serial",
+        label: "Serial",
+        displayOrder: 0,
+        dataType: "string",
+        nullable: false,
+        detectedAt: now,
+        lastSeenAt: now,
+        removedAt: null,
+        sourceVersion: "registry-test",
+      },
+      {
+        sheetId: "sheet-a",
+        columnKey: "battery_cycles",
+        label: "Battery Cycles",
+        displayOrder: 10,
+        dataType: "number",
+        nullable: true,
+        detectedAt: now,
+        lastSeenAt: now,
+        removedAt: null,
+        sourceVersion: "registry-test",
+      },
+    ];
+
+    const { columns, version } = buildDynamicColumns(registry);
+    const dynamic = columns.find((column) => column.id === "battery_cycles");
+    expect(dynamic).toBeDefined();
+    expect(dynamic?.source).toBe("dynamic");
+    expect(dynamic?.governance?.anonymized).toBe(true);
+    expect(dynamic?.order).toBeGreaterThan(8);
+    expect(version).toBe("registry-test");
   });
 });

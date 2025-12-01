@@ -1,0 +1,97 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.2</storyId>
+    <title>Backfill MongoDB with Serial Keys</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-19T17:32:00Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-2-backfill-mongodb-with-serial-keys.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As a data engineer</asA>
+    <iWant>I want to migrate existing MongoDB documents to include the correct serial as their primary identifier</iWant>
+    <soThat>so that downstream services immediately receive serial-aligned data after deployment</soThat>
+    <tasks>
+      <![CDATA[
+- Build `scripts/backfill-serial.ts` to load sheet rows, map legacy `deviceId` → `serial`, detect conflicts, and upsert serials using Mongo transactions or copy-on-write fallbacks. (AC1)
+- Update `models/Device.ts`/`schemas/device.ts` to require `serial`, maintain legacy `deviceId`, and create new indexes; wire `scripts/verify-sync-indexes.ts` to validate the changes. (AC2)
+- Emit structured migration reports: write `sync_events` entries (eventType `MIGRATION_RUN`), produce markdown/JSON summaries for unresolved rows, and log via Pino. (AC3, AC4)
+- Add CLI ergonomics: `--dry-run`, `--resume-token`, `--batch-size`, default dry-run behavior, and update runbook sections describing execution + rollback steps. (AC3)
+      ]]>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <![CDATA[
+1. Migration matches sheet rows to Mongo documents using legacy `deviceId` (or deterministic keys) and writes canonical `serial` for each document.
+2. Historical `deviceId` remains readable while `serial` becomes the enforced primary key/index.
+3. Migration is idempotent and produces a report summarizing successes/failures (counts, conflicts, unresolved rows).
+4. Telemetry is emitted via `sync_events`/Pino logs so operators know migration outcome and remediation items.
+    ]]>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Functional Requirements" snippet="FR-002 requires serial canonicalization across Mongo, ensuring migration keeps legacy deviceId readable while serial becomes the durable key; dynamic column propagation depends on this groundwork." />
+      <doc path="docs/tech-spec-epic-1.md" title="Epic 1 Technical Specification" section="Services and Modules" snippet="Defines the Serial Migration Task (`scripts/backfill-serial.ts`) plus telemetry/reporting expectations and sequencing with the audit loop." />
+      <doc path="docs/epics.md" title="Epic 1 – Serial Source Alignment" section="Story EP1.2" snippet="User story + ACs for backfilling MongoDB with serial keys, highlighting prerequisites (audit) and MVP scope." />
+      <doc path="docs/runbook/sync-operations.md" title="Sync Operations Runbook" section="Normalization & Upsert Rules" snippet="Provides guidance on header mapping, copy-on-write fallbacks, verify-sync-indexes usage, and rollback procedures critical to the migration." />
+      <doc path="docs/development-guide.md" title="Development Guide" section="Environment Setup" snippet="Outlines prerequisites (service accounts, Mongo access, CLI commands) needed to run migration scripts safely." />
+      <doc path="docs/source-tree-analysis.md" title="Source Tree Analysis" section="Scripts & Workers" snippet="Maps key modules (lib/google-sheets.ts, workers/sync, scripts/verify-sync-indexes.ts) for aligning migration tooling with existing structure." />
+    </docs>
+    <code>
+      <codeArtifact path="nyu-device-roster/src/lib/google-sheets.ts" kind="library" symbol="fetchSheetData" lines="1-120" reason="Primary helper for loading sheet rows; migration must reuse its batching/retry behavior." />
+      <codeArtifact path="nyu-device-roster/src/workers/sync/index.ts" kind="worker" symbol="runDeviceSync" lines="360-460" reason="Reference implementation for connecting sheets → normalization → Mongo writes; migration aligns with these patterns." />
+      <codeArtifact path="nyu-device-roster/src/workers/sync/transform.ts" kind="transform" symbol="normalizeSheetRows" lines="1-200" reason="Existing normalization logic/aliases for device fields that migration can reuse when mapping legacy `deviceId` to serial." />
+      <codeArtifact path="nyu-device-roster/src/models/Device.ts" kind="model" symbol="DeviceModel" lines="1-70" reason="Needs schema/index changes to introduce canonical serial field." />
+      <codeArtifact path="nyu-device-roster/src/lib/logging.ts" kind="logging" symbol="logger" lines="1-120" reason="Migration telemetry uses shared Pino logger to emit structured events." />
+      <codeArtifact path="nyu-device-roster/src/lib/sync-status.ts" kind="state-store" symbol="SyncStatusState" lines="1-120" reason="Status snapshots should reflect migration progress when run via orchestration." />
+      <codeArtifact path="nyu-device-roster/tests/integration/sync.test.ts" kind="integration-test" symbol="applyDeviceUpserts tests" lines="1-120" reason="Foundation for extending integration coverage to serial migration scenarios." />
+    </code>
+    <dependencies>
+      <dependency ecosystem="node" manifest="nyu-device-roster/package.json">
+        <package name="mongoose" version="^8.19.3" />
+        <package name="typescript" version="^5" />
+        <package name="ts-node" version="^10.9.2" />
+        <package name="tsx" version="^4.20.6" />
+        <package name="mongodb-memory-server" version="^10.3.0" scope="devDependency" />
+      </dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <![CDATA[
+- Pause sync workers (Cloud Tasks) during migration or ensure exclusive locks to avoid concurrent writes. [Source: docs/runbook/sync-operations.md]
+- Migration must be idempotent and resumable; use checkpoint files and `--resume-token` to restart safely. [Source: docs/tech-spec-epic-1.md]
+- Telemetry must follow the `{ data, error }` envelope and write `sync_events` entries for governance reporting. [Source: docs/api-contracts.md]
+- Follow repository structure: scripts under `nyu-device-roster/scripts/`, shared helpers in `lib/`, database schemas in `models/` & `schemas/`. [Source: docs/architecture.md]
+    ]]>
+  </constraints>
+  <interfaces>
+    <![CDATA[
+- CLI `scripts/backfill-serial.ts` – command-line tool with flags `--dry-run`, `--batch-size`, `--resume-token`.
+- `/api/sync/status` – optional integration point if migration status should surface in existing banners.
+- `SyncEvent` logging schema – eventType `MIGRATION_RUN` with metadata `{ added, updated, skipped, conflicts, durationMs }`.
+    ]]>
+  </interfaces>
+  <tests>
+    <standards>
+      <![CDATA[
+- Use Vitest/Jest for unit logic (mapping, diffing) and `mongodb-memory-server` for integration tests, matching repo standards documented in docs/development-guide.md.]]>
+    </standards>
+    <locations>
+      <![CDATA[
+- Unit: `nyu-device-roster/tests/unit/scripts/migration/*.test.ts`
+- Integration: `nyu-device-roster/tests/integration/migration.test.ts`
+      ]]>
+    </locations>
+    <ideas>
+      <![CDATA[
+- AC1: Simulate sheet fixture → Mongo dataset; ensure serials populate and idempotent reruns produce no additional writes.
+- AC3: Verify dry-run output matches actual changes and conflicts are reported.
+- AC4: Assert `sync_events` entries appear with MIGRATION_RUN metadata and Pino logs contain summary counts.]]>
+    </ideas>
+  </tests>
+</story-context>

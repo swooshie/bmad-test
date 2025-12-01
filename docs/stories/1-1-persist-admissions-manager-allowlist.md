@@ -1,6 +1,6 @@
 # Story 1.1: Persist admissions manager allowlist
 
-Status: review
+Status: done
 
 ## Story
 
@@ -84,3 +84,42 @@ so that we can update access between demos without redeploying the application.
 
 - Initial draft created by Scrum Master workflow (2025-11-04).
 - Implementation pass by Amelia (2025-11-05): added Mongo config model/Zod schema, seeding CLI with audit log hook, allowlist-enforced NextAuth callbacks, and supporting tests.
+- Senior Developer Review approved (2025-11-17): ACs and tasks verified; no follow-ups identified.
+
+## Senior Developer Review (AI)
+
+- Reviewer: Aditya
+- Date: 2025-11-17
+- Outcome: Approve — all ACs implemented; no findings.
+- Summary: Config persistence, allowlist management, and NextAuth enforcement align with ACs; caching keeps propagation under one minute; audit logging present for rejections and allowlist updates.
+
+### Key Findings
+
+- None.
+
+### Acceptance Criteria Coverage
+
+| AC # | Description | Status | Evidence |
+| --- | --- | --- | --- |
+| AC1 | Persist allowlist, sheet ID, collection name; updates propagate under a minute | Implemented | `nyu-device-roster/src/models/Config.ts:19-94`; 30s cache refresh in `nyu-device-roster/src/lib/config.ts:12-36` ensures propagation within one minute |
+| AC2 | Allowlist management via CLI/admin endpoint with timestamp/operator attribution | Implemented | Upsert records attribution and change log in `nyu-device-roster/src/lib/config.ts:90-138`; CLI surface `nyu-device-roster/scripts/seed-allowlist.ts:1-160` |
+| AC3 | Auth flow enforces allowlist and logs rejections | Implemented | NextAuth sign-in callback checks domain + allowlist and logs rejections in `nyu-device-roster/src/lib/auth/options.ts:98-153`; rejection/admit logging in `nyu-device-roster/src/lib/logging.ts:20-53` |
+
+### Task Completion Validation
+
+| Task | Marked As | Verified As | Evidence |
+| --- | --- | --- | --- |
+| Design Config collection schema | Complete | Verified | Mongoose model `nyu-device-roster/src/models/Config.ts:19-94` |
+| Implement schema + Zod validator alignment | Complete | Verified | Zod schema `nyu-device-roster/src/schemas/config.ts:20-38` |
+| Build CLI/admin allowlist management | Complete | Verified | CLI `nyu-device-roster/scripts/seed-allowlist.ts:1-160` uses `upsertConfig` with attribution |
+| Emit audit logging for changes | Complete | Verified | Change log persistence in `nyu-device-roster/src/lib/config.ts:90-138`; allowlist logging helpers `nyu-device-roster/src/lib/logging.ts:20-53` |
+| Wire sign-in callback to allowlist | Complete | Verified | NextAuth callbacks `nyu-device-roster/src/lib/auth/options.ts:98-153` enforce domain + allowlist and log rejections |
+| Verify allowlist consumed by `/api/sync` without redeploy (cache under 1 min) | Complete | Verified | Config cache TTL 30s in `nyu-device-roster/src/lib/config.ts:12-36`; runtime loader for API/worker consumption `nyu-device-roster/src/lib/config.ts:154-179` |
+
+### Test Coverage and Gaps
+
+- Not re-run during this review; prior Vitest runs logged in story Dev Agent Record cover auth options, session middleware, and config helpers. No gaps noted for ACs.
+
+### Action Items
+
+- None.

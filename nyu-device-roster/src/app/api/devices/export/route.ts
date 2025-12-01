@@ -33,7 +33,8 @@ const escapeCsvValue = (value: string | null | undefined) => {
 
 const buildCsv = (rows: DeviceGridDevice[]) => {
   const header = [
-    "Device ID",
+    "Serial",
+    "Legacy Device ID",
     "Assigned To",
     "Status",
     "Condition",
@@ -47,7 +48,8 @@ const buildCsv = (rows: DeviceGridDevice[]) => {
     header.join(","),
     ...rows.map((row) =>
       [
-        escapeCsvValue(row.deviceId),
+        escapeCsvValue(row.serial),
+        escapeCsvValue(row.legacyDeviceId ?? ""),
         escapeCsvValue(row.assignedTo),
         escapeCsvValue(row.status),
         escapeCsvValue(row.condition),
@@ -76,9 +78,9 @@ const buildPdf = (rows: DeviceGridDevice[]): Buffer => {
   const dataLines = rows.length
     ? rows.map(
         (row) =>
-          `${row.deviceId} · ${row.offboardingStatus ?? "No offboarding"} · Condition: ${
-            row.condition
-          } · ${row.governanceCue.summary || "Governance clear"}`
+          `${row.serial} (${row.legacyDeviceId ?? "legacy pending"}) · ${
+            row.offboardingStatus ?? "No offboarding"
+          } · Condition: ${row.condition} · ${row.governanceCue.summary || "Governance clear"}`
       )
     : ["No data to export"];
   const lines = [...summaryLines, ...dataLines];
@@ -136,6 +138,8 @@ export const POST = withSession(async (request: NextRequestWithSession) => {
     // Default body to empty filters
   }
 
+  const serialFilter = request.nextUrl.searchParams.get("serial");
+
   const normalizedState = mergeDeviceGridState(DEFAULT_DEVICE_GRID_STATE, {
     filters: body.filters ?? {},
   });
@@ -148,7 +152,9 @@ export const POST = withSession(async (request: NextRequestWithSession) => {
     .sort(sort)
     .lean<DeviceAttributes>()
     .exec();
-  const serialized = records.map(deviceQueryInternal.serializeDevice);
+  const serialized = records
+    .map(deviceQueryInternal.serializeDevice)
+    .filter((device) => (serialFilter ? device.serial === serialFilter : true));
   const anonymized = readAnonymizationCookie(request.cookies);
   const datasetWithPrivacy = anonymized
     ? serialized.map((device) => anonymizeDeviceRow(device, true))

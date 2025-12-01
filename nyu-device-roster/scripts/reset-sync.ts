@@ -95,6 +95,7 @@ export const readBaseline = async (filePath: string): Promise<BaselineDevice[]> 
 
 export const toDeviceDocs = (records: BaselineDevice[]) =>
   records.map((device) => ({
+    serial: device.deviceId.toLowerCase(),
     deviceId: device.deviceId,
     sheetId: device.sheetId,
     assignedTo: device.assignedTo,

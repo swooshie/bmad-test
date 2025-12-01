@@ -97,12 +97,16 @@ describe("POST /api/sync/manual", () => {
         durationMs: 500,
         runId: "run-mock-id",
         anomalies: [],
+        serialConflicts: 0,
+        legacyIdsUpdated: 0,
       },
       sheetId: "sheet-123",
       rowCount: 6,
       skipped: 0,
       anomalies: [],
       durationMs: 500,
+      columnRegistry: { added: 0, removed: 0, total: 0 },
+      columnRegistryVersion: "v1",
     });
 
     const { POST } = await import("@/app/api/sync/manual/route");
@@ -120,10 +124,14 @@ describe("POST /api/sync/manual", () => {
       error: null,
     });
 
-    expect(markSyncRunning).toHaveBeenCalledWith({
-      runId: "run-mock-id",
-      requestedBy: "lead@nyu.edu",
-    });
+    expect(markSyncRunning).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: "run-mock-id",
+        requestedBy: "lead@nyu.edu",
+        trigger: "manual",
+        mode: "live",
+      })
+    );
     expect(mockRunDeviceSync).toHaveBeenCalledWith(
       expect.objectContaining({
         sheetId: "sheet-123",
@@ -136,10 +144,21 @@ describe("POST /api/sync/manual", () => {
     );
 
     await Promise.resolve();
-    expect(markSyncSuccess).toHaveBeenCalledWith({
-      runId: "run-mock-id",
-      metrics: expect.objectContaining({ added: 1, durationMs: 500 }),
-    });
+    expect(markSyncSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: "run-mock-id",
+        requestedBy: "lead@nyu.edu",
+        trigger: "manual",
+        mode: "live",
+        metrics: expect.objectContaining({
+          added: 1,
+          durationMs: 500,
+          rowsProcessed: 6,
+          rowsSkipped: 0,
+          conflicts: 0,
+        }),
+      })
+    );
   });
 
   it("records sync errors when worker fails", async () => {
@@ -158,6 +177,8 @@ describe("POST /api/sync/manual", () => {
     expect(markSyncError).toHaveBeenCalledWith(
       expect.objectContaining({
         runId: "run-mock-id",
+        requestedBy: "lead@nyu.edu",
+        trigger: "manual",
         errorCode: "SHEETS_RATE_LIMIT",
         recommendation: expect.stringContaining("cadence"),
       })
@@ -193,12 +214,23 @@ describe("POST /api/sync/manual", () => {
 
   it("logs manual trigger attempts for observability", async () => {
     mockRunDeviceSync.mockResolvedValue({
-      upsert: { added: 0, updated: 0, unchanged: 0, durationMs: 100, runId: "run-mock-id", anomalies: [] },
+      upsert: {
+        added: 0,
+        updated: 0,
+        unchanged: 0,
+        durationMs: 100,
+        runId: "run-mock-id",
+        anomalies: [],
+        serialConflicts: 0,
+        legacyIdsUpdated: 0,
+      },
       sheetId: "sheet-123",
       rowCount: 0,
       skipped: 0,
       anomalies: [],
       durationMs: 100,
+      columnRegistry: { added: 0, removed: 0, total: 0 },
+      columnRegistryVersion: "v1",
     });
 
     const { POST } = await import("@/app/api/sync/manual/route");

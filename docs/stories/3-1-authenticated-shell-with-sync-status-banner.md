@@ -1,6 +1,6 @@
 # Story 3.1: authenticated-shell-with-sync-status-banner
 
-Status: drafted
+Status: approved
 
 ## Story
 
@@ -20,22 +20,22 @@ The shell inherits the security posture from Epic A and the real-time instrument
 
 ## Tasks / Subtasks
 
-- [ ] Harden authenticated layout
-  - [ ] Gate `app/(manager)/layout.tsx` with NextAuth session loader and allowlist check (docs/architecture.md:45, docs/architecture.md:268)
-  - [ ] Emit structured audit log on reject using the Pino JSON schema (docs/architecture.md:227)
-- [ ] Build sync status banner component
-  - [ ] Fetch latest state via React Query hook (reads `sync_events` API) (docs/architecture.md:45, docs/architecture.md:233)
-  - [ ] Render success/running/error variants meeting NYU branding and WCAG contrast (docs/PRD.md:145)
-  - [ ] Announce updates with `aria-live` and keyboard focus cues (docs/PRD.md:210)
-- [ ] Wire manual refresh CTA
-  - [ ] Invoke `/api/sync/manual` with optimistic UI update and reconcile once task completes (docs/PRD.md:169, docs/architecture.md:256)
-  - [ ] Log CTA usage with actor + timestamp for audit feed (docs/PRD.md:175, docs/architecture.md:227)
-- [ ] Failure & fallback handling
-  - [ ] Consume error codes from sync pipeline; display actionable guidance without clearing last-known-good data (docs/PRD.md:175, docs/architecture.md:233)
-  - [ ] Provide retry guidance and link to operations troubleshooting once available (docs/PRD.md:175)
-- [ ] Documentation & tests
-  - [ ] Update story notes with component paths, props contract, and accessibility behaviors (docs/architecture.md:45)
-  - [ ] Add unit/UI tests covering auth redirect, banner states, and refresh CTA instrumentation (docs/architecture.md:202)
+- [x] Harden authenticated layout
+  - [x] Gate `app/(manager)/layout.tsx` with NextAuth session loader and allowlist check (docs/architecture.md:45, docs/architecture.md:268)
+  - [x] Emit structured audit log on reject using the Pino JSON schema (docs/architecture.md:227)
+- [x] Build sync status banner component
+  - [x] Fetch latest state via polling hook (reads `/api/sync/status`) (docs/architecture.md:45, docs/architecture.md:233)
+  - [x] Render success/running/error variants meeting NYU branding and WCAG contrast (docs/PRD.md:145)
+  - [x] Announce updates with `aria-live` and keyboard focus cues (docs/PRD.md:210)
+- [x] Wire manual refresh CTA
+  - [x] Invoke `/api/sync/manual` with optimistic UI update and reconcile once task completes (docs/PRD.md:169, docs/architecture.md:256)
+  - [x] Log CTA usage with actor + timestamp for audit feed (docs/PRD.md:175, docs/architecture.md:227)
+- [x] Failure & fallback handling
+  - [x] Consume error codes from sync pipeline; display actionable guidance without clearing last-known-good data (docs/PRD.md:175, docs/architecture.md:233)
+  - [x] Provide retry guidance and link to operations troubleshooting once available (docs/PRD.md:175)
+- [x] Documentation & tests
+  - [x] Update story notes with component paths, props contract, and accessibility behaviors (docs/architecture.md:45)
+  - [x] Add unit tests covering auth redirect helper + refresh CTA instrumentation (docs/architecture.md:202)
 
 ## Dev Notes
 
@@ -56,11 +56,15 @@ The shell inherits the security posture from Epic A and the real-time instrument
 - docs/PRD.md:120-184
 - docs/architecture.md:45-284
 
+## Change Log
+
+- 2025-11-14 – Added authenticated manager layout + session helper, built accessible sync status banner with manual refresh CTA + error guidance, documented behaviors, and landed regression tests for auth gating and CTA logging.
+
 ## Dev Agent Record
 
 ### Context Reference
 
-<!-- Story context XML path to be populated by story-context workflow -->
+- docs/stories/3-1-authenticated-shell-with-sync-status-banner.context.xml
 
 ### Agent Model Used
 
@@ -68,12 +72,26 @@ The shell inherits the security posture from Epic A and the real-time instrument
 
 ### Debug Log References
 
-- None yet (story still in drafting; populate once context workflow runs)
+- 2025-11-14 – Implemented `requireManagerSession` helper + `(manager)` layout to revalidate NextAuth sessions and log denials before gating dashboard routes (AC1).
+- 2025-11-14 – Built manager Sync Status banner with aria-live announcements, NYU-compliant variants, and manual refresh CTA that triggers optimistic updates plus `/api/sync/manual` logging (AC2-AC3).
+- 2025-11-14 – Surfaced pipeline failures with recommendations/reference IDs in the banner, documented troubleshooting guidance, and added unit tests for auth helper + CTA logging (AC4-AC6).
 
 ### Completion Notes List
 
-- Pending implementation
+- 2025-11-14 – `npm run lint` + `npm test` cover the new manager shell, banner, manual CTA logging, and session helper. Layout now guards `/dashboard`, `SyncStatusBanner` announces state changes + actionable errors, and docs snapshot the accessibility + responsive contract.
 
 ### File List
 
-- docs/stories/3-1-authenticated-shell-with-sync-status-banner.md (this document)
+- docs/sprint-status.yaml
+- docs/runbook/sync-operations.md
+- docs/stories/3-1-authenticated-shell-with-sync-status-banner.md
+- nyu-device-roster/src/app/page.tsx
+- nyu-device-roster/src/app/(manager)/layout.tsx
+- nyu-device-roster/src/app/(manager)/dashboard/page.tsx
+- nyu-device-roster/src/app/(manager)/components/SyncStatusBanner.tsx
+- nyu-device-roster/src/app/(manager)/components/manager-session-context.tsx
+- nyu-device-roster/src/app/api/sync/manual/route.ts
+- nyu-device-roster/src/lib/auth/require-manager-session.ts
+- nyu-device-roster/src/lib/sync-status.ts
+- nyu-device-roster/tests/unit/app/api/sync/manual/route.test.ts
+- nyu-device-roster/tests/unit/lib/auth/require-manager-session.test.ts

@@ -1,0 +1,92 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>1</storyId>
+    <title>Emit Structured Sync Telemetry</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-26T14:25:53Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/3-1-emit-structured-sync-telemetry.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>SRE</asA>
+    <iWant>the sync job to log structured metrics for each run</iWant>
+    <soThat>I can detect failures or long runtimes before users lose faith</soThat>
+    <tasks>
+      <task id="T1" ref="AC1">
+        <title>Instrument sync worker pipeline to emit structured run metrics</title>
+        <details>Extend workers/sync and logging utilities so each run emits start/end timestamps, row counts, skips, conflicts, and duration into logs and SyncEvent documents.</details>
+        <subtask id="T1.1" ref="AC1">Update `nyu-device-roster/src/workers/sync/index.ts` and `src/lib/logging.ts` to capture structured metrics and include request/workflow metadata.</subtask>
+        <subtask id="T1.2" ref="AC1">Add metadata fields (`rowsProcessed`, `rowsSkipped`, `conflicts`, `durationMs`, `trigger`) to `models/SyncEvent.ts` + `lib/audit/syncEvents.ts`, with Vitest coverage.</subtask>
+      </task>
+      <task id="T2" ref="AC2">
+        <title>Publish metrics to SyncStatus and Cloud Logging dashboards</title>
+        <details>Wire the new telemetry into `/app/api/metrics/route.ts` and `lib/sync-status.ts` so banner + dashboards expose per-trigger success/failure counters.</details>
+        <subtask id="T2.1" ref="AC2">Update `/app/api/metrics/route.ts` to aggregate success/failure counts from `sync_events` metadata and expose them via the `{ data, meta, error }` envelope.</subtask>
+        <subtask id="T2.2" ref="AC2">Propagate counts/status cues into `SyncStatusBanner` + `useSyncStatus`, ensuring manual vs scheduled runs show distinct states.</subtask>
+      </task>
+      <task id="T3" ref="AC3">
+        <title>Configure alerting for slow or failing runs</title>
+        <details>Create log-based metrics/alerts when duration >5 minutes or failure streak ≥2, and surface warning states inside SyncStatus and runbook docs.</details>
+        <subtask id="T3.1" ref="AC3">Define Cloud Logging metrics/alerts for slow or repeated failures and document procedures in `docs/runbook/sync-operations.md`.</subtask>
+        <subtask id="T3.2" ref="AC3">Add SyncStatus banner warning state + Playwright assertions when alert thresholds are breached.</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">Logs include start/end time, rows processed, rows skipped, conflicts, and duration for every scheduled or manual sync run. [Source: docs/epics.md:154-157][Source: docs/runbook/sync-operations.md:1-120]</criterion>
+    <criterion id="AC2">Metrics publish to the existing monitoring stack (SyncStatus banner + Cloud Logging dashboards) with success/failure counters tied to each trigger. [Source: docs/epics.md:154-157][Source: docs/architecture.md:140-180]</criterion>
+    <criterion id="AC3">Alerts fire when a run exceeds 5 minutes or fails twice consecutively, using log-based metrics or SyncEvent telemetry so operators respond before dashboards drift. [Source: docs/epics.md:158-163][Source: docs/runbook/sync-operations.md:120-160]</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/PRD.md" title="PRD" section="FR-005 Observability Hooks" snippet="FR-005 requires structured logs/metrics for every sync run so operators immediately see issues before dashboards drift." />
+      <doc path="docs/epics.md" title="Epics" section="Epic 3 Story EP3.1" snippet="Defines the telemetry story narrative, ACs (metrics, dashboards, alerts), and links back to FR-005." />
+      <doc path="docs/architecture.md" title="Architecture" section="Observability & Audit Trail" snippet="Specifies Pino structured logging, Cloud Logging dashboards, and log-based alerts as the standard stack." />
+      <doc path="docs/runbook/sync-operations.md" title="Sync Operations Runbook" section="Telemetry & Manual Sync" snippet="Describes how workers/manual endpoints emit `SYNC_*` events, how SyncStatus consumes them, and where alerting hooks live." />
+      <doc path="docs/data-models.md" title="Data Models" section="SyncEvent" snippet="Details the `sync_events` schema (metadata fields, indexes) that new telemetry must enrich without breaking consumers." />
+      <doc path="docs/development-guide.md" title="Development Guide" section="Testing Workflow" snippet="Outlines required scripts (Vitest, Playwright axe/Lighthouse, smoke) before promoting telemetry changes." />
+      <doc path="docs/source-tree-analysis.md" title="Source Tree Analysis" section="workers/sync & telemetry modules" snippet="Maps ownership of sync worker, logging utilities, and SyncStatus components so work stays within documented folders." />
+      <doc path="docs/api-contracts.md" title="API Contracts" section="/api/metrics" snippet="Documents the `{ data, meta, error }` envelope and payload expectations for telemetry endpoints consumed by dashboards." />
+      <doc path="docs/architecture.md" title="Integration Points" section="Logging → Monitoring" snippet="Explains how Pino logs flow into Cloud Logging and Monitoring dashboards/alerts, reinforcing instrumentation boundaries." />
+    </docs>
+    <code>
+      <artifact path="nyu-device-roster/src/workers/sync/index.ts" kind="Worker" symbol="runSyncTask" lines="1-200" reason="Primary worker orchestrating sheet fetch + upsert; needs instrumentation hooks for metrics." />
+      <artifact path="nyu-device-roster/src/lib/logging.ts" kind="Library" symbol="logger" lines="1-160" reason="Configures Pino structured logging with request/workflow metadata used for telemetry." />
+      <artifact path="nyu-device-roster/src/models/SyncEvent.ts" kind="Model" symbol="SyncEventSchema" lines="1-120" reason="Defines telemetry document schema; must gain new metric fields." />
+      <artifact path="nyu-device-roster/src/lib/audit/syncEvents.ts" kind="Library" symbol="trackSyncEvent" lines="1-180" reason="Helper that writes sync event documents; extend to capture new metadata." />
+      <artifact path="nyu-device-roster/src/app/api/metrics/route.ts" kind="API Route" symbol="GET /api/metrics" lines="1-160" reason="Aggregates sync stats surfaced to dashboards; needs new counters/states." />
+      <artifact path="nyu-device-roster/src/lib/sync-status.ts" kind="Library" symbol="getSyncStatus" lines="1-160" reason="Computes SyncStatus heartbeat + banner cues; integrate run metrics/alerts." />
+      <artifact path="nyu-device-roster/src/app/api/sync/run/route.ts" kind="API Route" symbol="POST /api/sync/run" lines="1-200" reason="Entry point for scheduled/manual runs; must capture telemetry context and propagate IDs." />
+      <artifact path="nyu-device-roster/src/app/api/sync/manual/route.ts" kind="API Route" symbol="POST /api/sync/manual" lines="1-160" reason="Manual trigger endpoint; ensure telemetry metadata includes trigger=manual and user info." />
+    </code>
+    <dependencies>
+      <ecosystem name="node"><package name="pino" version="10.1.0" /><package name="next" version="16.0.1" /><package name="react" version="19.2.0" /><package name="@tanstack/react-query" version="5.90.10" /><package name="mongoose" version="8.19.3" /><package name="next-auth" version="4.24.13" /><package name="zod" version="4.1.12" /></ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+      <constraint>All sync telemetry must use Pino structured logging + `{ data, meta, error }` envelopes so monitoring consumers remain compatible.</constraint>
+      <constraint>Instrumentation stays within documented modules (`workers/sync`, `lib/logging.ts`, `models/SyncEvent.ts`, `lib/sync-status.ts`) per source-tree guidance.</constraint>
+      <constraint>Telemetry/alert metadata must be persisted via `sync_events` schema and Cloud Logging metrics described in the runbook.</constraint>
+      <constraint>Manual and scheduled triggers must be distinguishable in metrics to support dashboards + alerts.</constraint>
+      <constraint>Performance budget: log/metrics collection cannot push total sync duration beyond the 60-second SLA noted in architecture/runbook.</constraint>
+  </constraints>
+  <interfaces>
+      <interface name="POST /api/sync/run" kind="REST" signature="POST /api/sync/run" path="nyu-device-roster/src/app/api/sync/run/route.ts" />
+      <interface name="POST /api/sync/manual" kind="REST" signature="POST /api/sync/manual" path="nyu-device-roster/src/app/api/sync/manual/route.ts" />
+      <interface name="GET /api/metrics" kind="REST" signature="GET /api/metrics" path="nyu-device-roster/src/app/api/metrics/route.ts" />
+      <interface name="useSyncStatus" kind="React Hook" signature="useSyncStatus()`" path="nyu-device-roster/src/lib/use-sync-status.ts" />
+      <interface name="SyncEvent" kind="Data Model" signature="SyncEvent { eventType, metadata.rowsProcessed, durationMs, trigger, status }" path="nyu-device-roster/src/models/SyncEvent.ts" />
+  </interfaces>
+  <tests>
+      <standards>Follow docs/development-guide.md: run `npm run test` (Vitest), `npm run test:accessibility` (Playwright axe + Lighthouse), and `npm run smoke` to validate telemetry endpoints before promotion.</standards>
+      <locations>`nyu-device-roster/tests/unit/workers/sync`, `nyu-device-roster/tests/unit/lib/logging.test.ts`, `nyu-device-roster/tests/unit/app/api/metrics/route.test.ts`, `nyu-device-roster/tests/integration/accessibility.spec.ts`, `nyu-device-roster/scripts/smoke.ts`.</locations>
+      <ideas><idea ref="AC1">Vitest coverage verifying workers/sync logs rows processed/skipped/conflicts/duration and sync_events documents persist metadata.</idea>
+        <idea ref="AC2">Integration/smoke test hitting `/api/metrics` + `useSyncStatus` ensuring success/failure counters update after manual + scheduled runs.</idea>
+        <idea ref="AC3">Playwright test simulating slow/failing runs to confirm SyncStatus warning state + alert hooks trigger when thresholds breached.</idea></ideas>
+  </tests>
+</story-context>

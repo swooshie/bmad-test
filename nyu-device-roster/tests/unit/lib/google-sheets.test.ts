@@ -89,6 +89,8 @@ describe("fetchSheetData", () => {
       active: 1,
     });
     expect(result.rows[0].lastSync).toBeInstanceOf(Date);
+    expect(result.rowMetadata).toHaveLength(2);
+    expect(result.rowMetadata[0]).toMatchObject({ rowNumber: 2 });
     expect(onPage).toHaveBeenCalledTimes(1);
     expect(result.metrics.rowCount).toBe(2);
   });

@@ -1,8 +1,9 @@
 import connectToDatabase from "@/lib/db";
+import { recordAuditLogFromSyncEvent } from "@/lib/audit/auditLogs";
 import SyncEventModel, { type SyncEventType } from "@/models/SyncEvent";
 
 type DrawerEventPayload = {
-  deviceId: string;
+  serial: string;
   eventType: SyncEventType;
   route: string;
   method: string;
@@ -18,6 +19,14 @@ export const recordSyncEvent = async (payload: DrawerEventPayload) => {
     method: payload.method,
     userEmail: payload.actor,
     reason: payload.eventType,
-    metadata: { ...(payload.metadata ?? {}), deviceId: payload.deviceId },
+    metadata: { ...(payload.metadata ?? {}), serial: payload.serial },
+  });
+
+  await recordAuditLogFromSyncEvent({
+    eventType: payload.eventType,
+    action: payload.eventType,
+    actor: payload.actor,
+    status: "success",
+    context: { ...(payload.metadata ?? {}), serial: payload.serial, route: payload.route },
   });
 };

@@ -1,0 +1,101 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.3</storyId>
+    <title>Update Sync + API to Use Serial</title>
+    <status>Approved</status>
+    <generatedAt>2025-11-24T14:41:21Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-3-update-sync-and-api-to-use-serial.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As an internal platform engineer</asA>
+    <iWant>I want the sync pipeline and /api/devices endpoint to read/write serial as the canonical key</iWant>
+    <soThat>so that every consuming feature automatically trusts the refreshed dataset</soThat>
+    <tasks>
+      <![CDATA[
+- Update sync worker (Cloud Tasks worker + manual API) to treat serial as the Mongo document key, refactor applyDeviceUpserts filters/contentHash, and log conflict metadata surfaced through SyncStatus snapshots. (AC1, AC4)
+- Adjust normalization and schema layers so normalizeSheetRows, Device model, and schema definitions treat serial as canonical while retaining read-only legacy deviceId support. (AC1, AC2)
+- Enhance /api/devices and associated query/UI layers to emit serial-first payloads, include refreshed columns metadata, and ensure React Query caches + hooks use serial keys. (AC2, AC3)
+- Extend telemetry by emitting sync_event fields (serialConflicts, legacyIdsUpdated, columnsVersion) and updating SyncStatusBanner/log dashboards so operators monitor rollout health. (AC4)
+      ]]>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <![CDATA[
+1. The sync worker writes Mongo documents keyed by serial, detects duplicates, and logs conflicts/anomalies with actionable metadata.
+2. /api/devices responses expose serial plus legacy deviceId (read-only) and include columns metadata so downstream UI/components render serial-first grids.
+3. Dashboard queries, React Query caches, and downstream jobs consume serial-first identifiers, ensuring no manual adjustments are required post-migration.
+4. Telemetry (sync_events, Pino logs, SyncStatus) records serial adoption metrics so operators can monitor rollout.
+    ]]>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Project-Type Specific Requirements" snippet="Data contract and API specification mandate serial as the immutable primary key, require duplicate serials to trigger observability alerts, and instruct /api/devices to emit serial-first payloads plus generated columns metadata for the dashboard." />
+      <doc path="docs/epics.md" title="Epics" section="Story EP1.3" snippet="Defines the user story to shift sync + API flows to serial, details acceptance criteria covering duplicate detection, legacy deviceId exposure, and downstream adoption expectations, and lists EP1.2 as a prerequisite." />
+      <doc path="docs/tech-spec-epic-1.md" title="Epic 1 Technical Specification" section="Services and Modules" snippet="Breaks down how the sync worker, API envelope utilities, React Query hooks, and Device schema enforce serial-first behavior while still returning legacy identifiers until consumers migrate." />
+      <doc path="docs/architecture.md" title="Architecture" section="Sync Orchestration & Observability" snippet="Explains Cloud Scheduler → Cloud Tasks ingest pipeline, retry/rollback policies, and Pino-based telemetry dashboards that must absorb the new serial conflict metrics." />
+      <doc path="docs/source-tree-analysis.md" title="Source Tree Analysis" section="Module Inventory" snippet="Maps where sync workers, schemas, API routes, and UI hooks live so changes stay within existing directories (`workers/sync`, `app/api/devices`, `components/SyncStatusBanner`)." />
+    </docs>
+    <code>
+      <codeArtifact path="nyu-device-roster/src/workers/sync/index.ts" kind="worker" symbol="runDeviceSync" lines="320-520" reason="Switches ingestion to serial-first upserts, ensures duplicate detection, wraps transactions with snapshot fallback, and publishes sync_event metadata used by telemetry." />
+      <codeArtifact path="nyu-device-roster/src/workers/sync/transform.ts" kind="transform" symbol="normalizeSheetRows" lines="1-200" reason="Normalizes sheet rows, maps serial/deviceId aliases, and computes contentHash; this story updates logic so serial is canonical while legacy deviceId remains optional." />
+      <codeArtifact path="nyu-device-roster/src/models/Device.ts" kind="model" symbol="DeviceModel" lines="1-160" reason="Defines Mongo schema/indexes and must declare serial as `_id` with legacy deviceId field retained for compatibility." />
+      <codeArtifact path="nyu-device-roster/src/app/api/devices/route.ts" kind="api" symbol="GET handler" lines="1-160" reason="Returns device grid data; needs to emit serial-first payloads, include columns metadata, and leverage updated query service." />
+      <codeArtifact path="nyu-device-roster/src/app/api/devices/device-query-service.ts" kind="service" symbol="queryDeviceGrid" lines="1-220" reason="Builds Mongo queries and serializes device records; story updates ensure serial surfaces as the principal identifier and filter/search behavior includes it." />
+      <codeArtifact path="nyu-device-roster/src/app/(manager)/devices/hooks/useDeviceGrid.ts" kind="hook" symbol="useDeviceGrid" lines="1-220" reason="React Query hook handling caching, filters, and personalization; story updates align cache keys and columns logic with serial-first contract." />
+      <codeArtifact path="nyu-device-roster/src/components/SyncStatusBanner.tsx" kind="component" symbol="SyncStatusBanner" lines="1-160" reason="Surfaced telemetry states for sync runs; story expands messaging to include serial migration cues/conflict alerts pulled from sync status snapshots." />
+      <codeArtifact path="nyu-device-roster/src/lib/sync-status.ts" kind="state" symbol="SyncStatusState" lines="1-160" reason="Shared state for sync runs; needs new metrics fields (serial conflicts, legacy references) to expose telemetry in UI/logs." />
+    </code>
+    <dependencies>
+      <dependency ecosystem="node" manifest="nyu-device-roster/package.json">
+        <package name="next" version="16.0.1" reason="App Router APIs and React server components powering /api/devices and dashboards." />
+        <package name="mongoose" version="^8.19.3" reason="Schema/index enforcement so serial becomes `_id` while legacy deviceId remains readable." />
+        <package name="@tanstack/react-query" version="^5.90.10" reason="Device grid caching + invalidation keyed on serial identifiers." />
+        <package name="zod" version="^4.1.12" reason="Filter/query schema validation for /api/devices DTOs." />
+        <package name="pino" version="^10.1.0" reason="Structured logging capturing sync telemetry + conflict metrics." />
+        <package name="@google-cloud/secret-manager" version="^6.1.1" reason="Runtime configuration + scheduler token retrieval for sync endpoints." />
+      </dependency>
+    </dependencies>
+  </artifacts>
+  <constraints>
+    <![CDATA[
+- Serial is the canonical key for new writes; legacy deviceId stays read-only metadata and must never override serial. [Source: docs/PRD.md]
+- Sync worker must keep transaction + snapshot guard fallbacks intact to preserve rollback guarantees during serial conflicts. [Source: docs/tech-spec-epic-1.md]
+- API/UI layers surface dynamic columns using existing grid utilities; no new directories or bespoke fetch logic. [Source: docs/source-tree-analysis.md]
+- Telemetry must route through sync_events + Pino logging with serial conflict counts so governance dashboards remain accurate. [Source: docs/architecture.md]
+- Operators require feature-flag toggles and SyncStatus visibility before enabling serial-first behavior; expose remediation guidance in UI/logs. [Source: docs/stories/1-3-update-sync-and-api-to-use-serial.md]
+    ]]>
+  </constraints>
+  <interfaces>
+    <interface name="POST /api/sync/run" kind="REST endpoint" signature="POST /api/sync/run with x-appengine-cron + x-internal-service-token headers" path="nyu-device-roster/src/app/api/sync/run/route.ts" />
+    <interface name="POST /api/sync/manual" kind="REST endpoint" signature="POST /api/sync/manual (authenticated manager session)" path="nyu-device-roster/src/app/api/sync/manual/route.ts" />
+    <interface name="GET /api/devices" kind="REST endpoint" signature="GET /api/devices?search&status[]&condition[]&assignedTo" path="nyu-device-roster/src/app/api/devices/route.ts" />
+    <interface name="Sync Status Hook" kind="hook" signature="useSyncStatus({ pollIntervalMs }): { status, error }" path="nyu-device-roster/src/lib/use-sync-status.ts" />
+    <interface name="Device Grid Hook" kind="hook" signature="useDeviceGrid(): { rows, meta, setFilters, setColumnVisibility }" path="nyu-device-roster/src/app/(manager)/devices/hooks/useDeviceGrid.ts" />
+  </interfaces>
+  <tests>
+    <standards>
+      <![CDATA[
+- Follow repo defaults: Vitest for unit logic (workers, transforms, hooks) with mongodb-memory-server seams, Playwright + axe for UI, and Lighthouse runs for performance per docs/development-guide.md.]]>
+    </standards>
+    <locations>
+      <![CDATA[
+- Unit: nyu-device-roster/tests/unit/workers/**/*.test.ts, nyu-device-roster/tests/unit/lib/devices/**/*.test.ts
+- Integration/API: nyu-device-roster/tests/integration/sync.test.ts, nyu-device-roster/tests/integration/api/devices.test.ts
+- UI/End-to-End: nyu-device-roster/tests/integration/accessibility.spec.ts, nyu-device-roster/tests/performance/*.mjs
+      ]]>
+    </locations>
+    <ideas>
+      <![CDATA[
+- AC1: Extend sync integration tests with duplicate serial fixtures and assert sync_events log serialConflicts + remediation hints.
+- AC2: Add API contract test covering GET /api/devices to verify serial-first DTOs, legacy deviceId metadata, and columns array output.
+- AC3: UI/React Query test confirming useDeviceGrid cache keys + personalization persist when serial becomes key (toggle column visibility, refresh, verify state).
+- AC4: Unit test SyncStatus + SyncStatusBanner path to ensure new telemetry fields render rollout states and alert messaging.
+      ]]>
+    </ideas>
+  </tests>
+</story-context>

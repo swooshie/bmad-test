@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { SyncStatusState } from "@/lib/sync-status";
 
@@ -23,30 +23,34 @@ export const useSyncStatus = (options?: UseSyncStatusOptions) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const load = useCallback(async () => {
+    try {
+      const status = await fetchStatus();
+      setState(status);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown status error");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
     let timer: ReturnType<typeof setInterval> | null = null;
 
-    const load = async () => {
-      try {
-        const status = await fetchStatus();
-        if (isMounted) {
-          setState(status);
-          setError(null);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : "Unknown status error");
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+    const loadWithLifecycle = async () => {
+      const startedAt = performance.now();
+      await load();
+      const duration = performance.now() - startedAt;
+      if (isMounted && duration > pollIntervalMs * 2) {
+        // If fetching is unusually slow, ensure interval still advances
+        setIsLoading(false);
       }
     };
 
-    void load();
-    timer = setInterval(load, pollIntervalMs);
+    void loadWithLifecycle();
+    timer = setInterval(loadWithLifecycle, pollIntervalMs);
 
     return () => {
       isMounted = false;
@@ -54,7 +58,11 @@ export const useSyncStatus = (options?: UseSyncStatusOptions) => {
         clearInterval(timer);
       }
     };
-  }, [pollIntervalMs]);
+  }, [load, pollIntervalMs]);
 
-  return { status: state, isLoading, error };
+  const refresh = useCallback(() => {
+    void load();
+  }, [load]);
+
+  return { status: state, isLoading, error, refresh };
 };

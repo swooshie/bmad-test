@@ -1,6 +1,6 @@
 # Story 2.5: Resilient error handling and rollback safeguards
 
-Status: drafted
+Status: review
 
 ## Story
 
@@ -24,15 +24,15 @@ As a demo operator, I want the sync pipeline to surface friendly, actionable fai
 
 ## Tasks / Subtasks
 
-- [ ] Define centralized error taxonomy in `errors/AppError` (or new enum) mapping pipeline failures to FR-012-friendly codes/messages. (AC: 1)
-  - [ ] Update `/api/sync/manual` and `/api/sync/run` to translate thrown errors into the new envelope sections consumed by status banner + governance logs. (AC: 1-2)
-- [ ] Implement transactional/rollback guard in `workers/sync`:
-  - [ ] Stage updates (e.g., temp collection, transactions, or two-phase commit) so partial writes never leak; on failure, abort and preserve last-known-good `devices`. (AC: 2)
-  - [ ] Emit status banner payload (via cache or API) describing failure + guidance. (AC: 2)
-- [ ] Extend `sync_events` schema/logging to capture `errorCode`, `stackTraceRef`, `recommendation`, `triggerType`, and anonymization snapshot. (AC: 3)
-- [ ] Create rollback/reset utility (CLI script under `scripts/reset-sync.ts` or admin endpoint) that restores baseline dataset from snapshot (file or fixture) with audit log entry. Document usage in runbook. (AC: 4)
-- [ ] Add monitoring hooks: log-based metrics/alerts for repeated failures, Slack/email stub documentation, and runbook troubleshooting table. (AC: 5)
-- [ ] Testing: add unit/integration tests covering failure propagation, dataset preservation, audit logging, and rollback tool behavior (including negative tests). (AC: 6)
+- [x] Define centralized error taxonomy in `errors/AppError` (or new enum) mapping pipeline failures to FR-012-friendly codes/messages. (AC: 1)
+  - [x] Update `/api/sync/manual` and `/api/sync/run` to translate thrown errors into the new envelope sections consumed by status banner + governance logs. (AC: 1-2)
+- [x] Implement transactional/rollback guard in `workers/sync`:
+  - [x] Stage updates (e.g., temp collection, transactions, or two-phase commit) so partial writes never leak; on failure, abort and preserve last-known-good `devices`. (AC: 2)
+  - [x] Emit status banner payload (via cache or API) describing failure + guidance. (AC: 2)
+- [x] Extend `sync_events` schema/logging to capture `errorCode`, `stackTraceRef`, `recommendation`, `triggerType`, and anonymization snapshot. (AC: 3)
+- [x] Create rollback/reset utility (CLI script under `scripts/reset-sync.ts` or admin endpoint) that restores baseline dataset from snapshot (file or fixture) with audit log entry. Document usage in runbook. (AC: 4)
+- [x] Add monitoring hooks: log-based metrics/alerts for repeated failures, Slack/email stub documentation, and runbook troubleshooting table. (AC: 5)
+- [x] Testing: add unit/integration tests covering failure propagation, dataset preservation, audit logging, and rollback tool behavior (including negative tests). (AC: 6)
 
 ## Dev Notes
 
@@ -73,13 +73,13 @@ As a demo operator, I want the sync pipeline to surface friendly, actionable fai
 
 ## Change Log
 
-- _Pending initial implementation._
+- 2025-11-14 – Added AppError taxonomy + status banner guidance, wrapped manual/scheduled APIs with structured envelopes, introduced transactional upsert guard with snapshot fallback, shipped `npm run reset-sync`, and expanded runbook troubleshooting/tests to validate rollback + failure flows.
 
 ## Dev Agent Record
 
 ### Context Reference
 
-<!-- Path(s) to story context XML will be added here by context workflow -->
+- docs/stories/2-5-resilient-error-handling-and-rollback-safeguards.context.xml
 
 ### Agent Model Used
 
@@ -87,6 +87,29 @@ As a demo operator, I want the sync pipeline to surface friendly, actionable fai
 
 ### Debug Log References
 
+- 2025-11-14 – Established shared AppError taxonomy + status-banner envelope updates (`src/lib/errors/app-error.ts`, `/api/sync/manual`, `/api/sync/run`) so AC1/AC3 failures now surface reference IDs, recommendations, and audit entries.
+- 2025-11-14 – Hardened worker upserts with Mongo transactions + snapshot fallback (`src/workers/sync/index.ts`) and expanded `sync_events` metadata to capture error codes/references before marking status (AC2-AC3).
+- 2025-11-14 – Delivered operator rollback tooling (`scripts/reset-sync.ts`, `data/devices-baseline.json`) and updated `docs/runbook/sync-operations.md` with troubleshooting/metrics guidance plus new unit + integration coverage (AC4-AC6).
+
 ### Completion Notes List
 
+- 2025-11-14 – `npm run lint` + `npm test` now pass after wiring AppError envelopes, transactional upserts, rollback script/tests, and runbook docs; cron/manual APIs log reference IDs while new CLI restores baseline snapshots with audit entries.
+
 ### File List
+
+- docs/sprint-status.yaml
+- docs/runbook/sync-operations.md
+- docs/stories/2-5-resilient-error-handling-and-rollback-safeguards.md
+- nyu-device-roster/package.json
+- nyu-device-roster/data/devices-baseline.json
+- nyu-device-roster/scripts/reset-sync.ts
+- nyu-device-roster/src/app/api/sync/manual/route.ts
+- nyu-device-roster/src/app/api/sync/run/route.ts
+- nyu-device-roster/src/lib/errors/app-error.ts
+- nyu-device-roster/src/lib/sync-status.ts
+- nyu-device-roster/src/workers/sync/index.ts
+- nyu-device-roster/tests/unit/app/api/sync/manual/route.test.ts
+- nyu-device-roster/tests/unit/app/api/sync/run/route.test.ts
+- nyu-device-roster/tests/unit/lib/errors/app-error.test.ts
+- nyu-device-roster/tests/unit/scripts/reset-sync.test.ts
+- nyu-device-roster/tests/unit/workers/sync/index.test.ts

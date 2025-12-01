@@ -9,8 +9,13 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:accessibility": "npm run axe:a11y && npm run lighthouse:a11y",
+    "axe:a11y": "playwright test tests/integration/accessibility.spec.ts",
+    "lighthouse:a11y": "node tests/performance/lighthouse.accessibility.mjs",
     "verify-sync-indexes": "tsx scripts/verify-sync-indexes.ts",
     "reset-sync": "tsx scripts/reset-sync.ts",
+    "snapshot:restore": "tsx scripts/rollback.ts --confirm",
+    "smoke": "tsx scripts/smoke.ts --exit",
     "perf:lighthouse": "node tests/performance/lighthouse.ci.mjs"
   },
   "dependencies": {
@@ -27,6 +32,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
     "@playwright/test": "^1.56.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",

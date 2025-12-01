@@ -27,7 +27,7 @@ describe("sync status store", () => {
     const spy = vi.fn();
     const unsubscribe = subscribeToSyncStatus(spy);
 
-    markSyncRunning({ runId: "run-1", requestedBy: "lead@nyu.edu" });
+    markSyncRunning({ runId: "run-1", requestedBy: "lead@nyu.edu", trigger: "manual" });
     expect(getSyncStatus()).toMatchObject({
       state: "running",
       runId: "run-1",
@@ -36,7 +36,19 @@ describe("sync status store", () => {
 
     markSyncSuccess({
       runId: "run-1",
-      metrics: { added: 5, updated: 2, unchanged: 10, durationMs: 1200 },
+      requestedBy: "lead@nyu.edu",
+      trigger: "manual",
+      metrics: {
+        added: 5,
+        updated: 2,
+        unchanged: 10,
+        rowsProcessed: 17,
+        rowsSkipped: 0,
+        conflicts: 1,
+        durationMs: 1200,
+        serialConflicts: 1,
+        legacyIdsUpdated: 0,
+      },
     });
     expect(getSyncStatus()).toMatchObject({
       state: "success",
@@ -54,6 +66,8 @@ describe("sync status store", () => {
 
     markSyncError({
       runId: "run-2",
+      requestedBy: "scheduler@nyu.edu",
+      trigger: "scheduled",
       errorCode: "SYNC_TIMEOUT",
       message: "Sync exceeded SLA",
       recommendation: "Retry later",
@@ -68,5 +82,50 @@ describe("sync status store", () => {
       referenceId: "ref-123",
     });
     expect(spy).toHaveBeenCalledTimes(2); // idle + error
+  });
+
+  it("emits a duration warning when a run exceeds five minutes", () => {
+    markSyncRunning({ runId: "run-3", requestedBy: "lead@nyu.edu", trigger: "manual" });
+    markSyncSuccess({
+      runId: "run-3",
+      requestedBy: "lead@nyu.edu",
+      trigger: "manual",
+      metrics: {
+        added: 1,
+        updated: 1,
+        unchanged: 0,
+        rowsProcessed: 2,
+        rowsSkipped: 0,
+        conflicts: 0,
+        durationMs: 301_000,
+        serialConflicts: 0,
+        legacyIdsUpdated: 0,
+      },
+    });
+
+    expect(getSyncStatus()).toMatchObject({
+      warning: expect.objectContaining({ type: "duration" }),
+    });
+  });
+
+  it("raises a warning when failures happen consecutively", () => {
+    markSyncError({
+      runId: "run-4",
+      requestedBy: "scheduler",
+      trigger: "scheduled",
+      errorCode: "SYNC_TIMEOUT",
+      message: "first",
+    });
+    markSyncError({
+      runId: "run-5",
+      requestedBy: "scheduler",
+      trigger: "scheduled",
+      errorCode: "SYNC_TIMEOUT",
+      message: "second",
+    });
+
+    expect(getSyncStatus()).toMatchObject({
+      warning: { type: "streak", message: expect.stringContaining("2 consecutive") },
+    });
   });
 });

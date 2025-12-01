@@ -1,0 +1,70 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>11</storyId>
+    <title>error-empty-and-edge-state-blueprint</title>
+    <status>Approved</status>
+    <generatedAt>2025-11-17T15:14:43Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/3-11-error-empty-and-edge-state-blueprint.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As a developer</asA>
+    <iWant>I want reusable patterns for empty states, no-results, and sync errors</iWant>
+    <soThat>so that the dashboard never leaves admissions managers confused</soThat>
+    <tasks>
+      - Empty/no-results patterns: first-use illustration + CTA to connect Google Sheet; no-results surfaces active filters and reset action.
+      - Error handling: inline banners and toasts wired to sync/anonymization failure codes with retry CTA, audit logging hook, focus return, and `role="alert"` for accessibility.
+      - Reliability and accessibility: maintain sub-200 ms interactions and 60-second freshness expectations, surface undo chips for destructive flows, and cover scenarios with tests for alerts/focus/undo.
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    1) First-use empty state with illustration + CTA for connecting the Google Sheet; no-results shows active filters and clear reset action.
+    2) Inline error banners and toasts wired to sync/anonymization failure codes with retry CTA, logged audit context, `role="alert"`, and focus management to the error source.
+    3) Alert patterns meet WCAG contrast, interactions stay under 200 ms while preserving 60-second sheet→UI freshness; destructive flows provide undo chips when applicable.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      - path: docs/epics.md | section: Story C11 acceptance criteria | snippet: Defines empty/no-results patterns, error banner/toast requirements, audit logging, and accessibility expectations for governance cues.
+      - path: docs/PRD.md | section: Performance & Accessibility | snippet: Sets sub-2s render, sub-200 ms interactions, WCAG AA alerts, and 60-second freshness targets for the dashboard.
+      - path: docs/architecture.md | section: Implementation Patterns | snippet: Requires API envelope + `AppError`, Pino logging, and React Query data layer for consistent error handling and telemetry.
+      - path: docs/ux-design-specification.md | section: Empty States & Notification Patterns | snippet: Empty-state illustrations with CTA, no-results guidance surfacing filters/reset, and alert/toast behaviors with undo chips and focus/ARIA treatment.
+      - path: docs/ux-design-directions.html | section: Design Direction Showcase | snippet: Interactive mockups demonstrating governance cues, error/empty-state visuals, and responsive behaviors that inform this story’s UI patterns.
+    </docs>
+    <code>
+      - path: nyu-device-roster/src/app/(manager)/dashboard/page.tsx | kind: page | symbol: DashboardPage | reason: Host surface for empty/no-results and error states in the manager dashboard.
+      - path: nyu-device-roster/src/app/(manager)/components/SyncStatusBanner.tsx | kind: component | symbol: SyncStatusBanner | reason: Existing status/error surface to integrate retry CTA and audit logging hooks.
+      - path: nyu-device-roster/src/app/(manager)/layout.tsx | kind: layout | symbol: ManagerLayout | reason: Layout that manages focus order and aria-live messaging for alerts/undo chips across breakpoints.
+      - path: nyu-device-roster/src/lib/logging.ts | kind: utility | symbol: logger | reason: Pino-based logging used to record sync/anonymization error events referenced by banners/toasts.
+      - path: nyu-device-roster/src/lib/api-envelope.ts | kind: utility | symbol: withApiEnvelope | reason: Standardized error envelope to map failure codes to UI alerts.
+    </code>
+    <dependencies>
+      - ecosystem: node
+        packages: next@16.0.1, react@19.2.0, next-auth@4.24.13, mongoose@^8.19.3, pino@^10.1.0, zod@^4.1.12
+      - ecosystem: tooling
+        packages: vitest@^4.0.7, @testing-library/react@^16.0.1, tailwindcss@^4, eslint@^9, typescript@^5
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - Keep interactions under 200 ms and preserve 60-second sheet→UI freshness; log failures via Pino logger and reuse API envelope.
+    - Maintain WCAG AA contrast on banners/toasts and ensure `role="alert"` with focus return to the triggering control; respect reduced-motion preferences.
+    - Reuse existing dashboard layout/context and React Query caches; do not fork API contracts for sync/anonymization error handling.
+  </constraints>
+  <interfaces>
+    - name: Sync status banner retry | kind: UI/handler | signature: SyncStatusBanner retry action invoking /api/sync endpoints | path: nyu-device-roster/src/app/(manager)/components/SyncStatusBanner.tsx
+    - name: API envelope handler | kind: function | signature: withApiEnvelope(handler) | path: nyu-device-roster/src/lib/api-envelope.ts
+  </interfaces>
+  <tests>
+    <standards>Use Vitest + React Testing Library for component alert/undo behavior; Playwright for responsive alert/focus flows; adhere to axe/Lighthouse accessibility expectations.</standards>
+    <locations>nyu-device-roster/tests/unit; nyu-device-roster/tests/integration; component-adjacent tests under nyu-device-roster/src/app/(manager)</locations>
+    <ideas>
+      - AC1: Component test for empty/no-results rendering with active filter reset CTA.
+      - AC2: Integration test simulating sync/anonymization failure to assert banner/toast, retry CTA, focus return, and `role="alert"`.
+      - AC3: Performance/accessibility check ensuring interactions <200 ms and alerts meet axe checks; verify undo chip flow logs via logger mock.
+    </ideas>
+  </tests>
+</story-context>

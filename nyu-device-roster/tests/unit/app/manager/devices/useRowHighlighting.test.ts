@@ -5,9 +5,9 @@ import { deriveHighlightIds } from "@/app/(manager)/devices/hooks/useRowHighligh
 describe("deriveHighlightIds", () => {
   it("returns a set of device ids for current rows", () => {
     const result = deriveHighlightIds([
-      { deviceId: "a" } as any,
-      { deviceId: "b" } as any,
-      { deviceId: "a" } as any,
+      { serial: "a" } as any,
+      { serial: "b" } as any,
+      { serial: "a" } as any,
     ]);
 
     expect(result.has("a")).toBe(true);

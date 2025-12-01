@@ -3,13 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import ReactDOMServer from "react-dom/server";
 
 import DeviceGrid from "@/app/(manager)/devices/components/DeviceGrid";
-import { DEVICE_COLUMNS } from "@/app/(manager)/devices/types";
+import { DEVICE_COLUMNS, DEVICE_COLUMNS_VERSION } from "@/app/(manager)/devices/types";
 import type { DeviceGridDevice, DeviceGridMeta } from "@/app/api/devices/device-query-service";
 import { DEFAULT_DEVICE_GRID_STATE } from "@/lib/devices/grid-query";
 
 const rows: DeviceGridDevice[] = [
   {
-    deviceId: "demo-001",
+    serial: "demo-001",
+    legacyDeviceId: "legacy-001",
     sheetId: "demo",
     assignedTo: "Alex",
     status: "Assigned",
@@ -40,6 +41,7 @@ const meta: DeviceGridMeta = {
   hasPreviousPage: false,
   appliedFilters: {},
   sort: { by: "lastSyncedAt", direction: "desc" },
+  columnsVersion: DEVICE_COLUMNS_VERSION,
   filterOptions: { statuses: [], conditions: [], offboardingStatuses: [] },
 };
 
@@ -52,9 +54,10 @@ describe("DeviceGrid accessibility", () => {
         meta={meta}
         isLoading={false}
         error={null}
-        state={{ ...DEFAULT_DEVICE_GRID_STATE, sortBy: "deviceId", sortDirection: "desc" }}
+        state={{ ...DEFAULT_DEVICE_GRID_STATE, sortBy: "serial", sortDirection: "desc" }}
         onRetry={vi.fn()}
         onSort={vi.fn()}
+        density="comfortable"
       />
     );
 

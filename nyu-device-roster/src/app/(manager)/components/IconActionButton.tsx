@@ -18,6 +18,7 @@ type IconActionButtonProps = {
   targetHref?: string;
   onPress?: () => Promise<void> | void;
   disabled?: boolean;
+  buttonRef?: React.Ref<HTMLButtonElement>;
 };
 
 const postTelemetry = async ({
@@ -58,6 +59,7 @@ export const IconActionButton = ({
   targetHref,
   disabled = false,
   onPress,
+  buttonRef,
 }: IconActionButtonProps) => {
   const { reducedMotion, hoverDurationMs, pressDurationMs, releaseDurationMs } = useAnimationTokens();
   const { startInteraction, recordInteraction } = usePerformanceMetrics();
@@ -130,6 +132,7 @@ export const IconActionButton = ({
       aria-pressed={ariaPressed}
       data-reduced-motion={reducedMotion}
       data-expanded={isActive}
+      ref={buttonRef}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
@@ -148,7 +151,7 @@ export const IconActionButton = ({
           ? `${label} (labels pinned for reduced motion)`
           : `${label} (label reveals on hover or focus)`}
       </span>
-      <style jsx>{`
+      <style>{`
         button.icon-action {
           transition-duration: ${hoverDurationMs}ms;
         }

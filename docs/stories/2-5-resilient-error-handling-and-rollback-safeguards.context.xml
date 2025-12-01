@@ -1,0 +1,117 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>B</epicId>
+    <storyId>2.5</storyId>
+    <title>Resilient error handling and rollback safeguards</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-11</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-5-resilient-error-handling-and-rollback-safeguards.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As a demo operator</asA>
+    <iWant>I want the sync pipeline to surface actionable failures while protecting the last-known-good dataset</iWant>
+    <soThat>so the admissions roster never breaks during live demos even when upstream services fail</soThat>
+    <tasks><task-list>
+  <task id="T1" ac="AC1" artifact="nyu-device-roster/src/lib/errors/AppError.ts">Define centralized error taxonomy mapping pipeline failures to FR-012-friendly codes and default messages.</task>
+  <task id="T1a" parent="T1" artifact="nyu-device-roster/src/app/api/sync/manual/route.ts">Update manual sync endpoint to translate thrown errors into the new envelope shared with status banner + governance logs.</task>
+  <task id="T1b" parent="T1" artifact="nyu-device-roster/src/app/api/sync/run/route.ts">Update scheduled sync endpoint to emit identical error envelopes and trigger metadata.</task>
+  <task id="T2" ac="AC2" artifact="nyu-device-roster/src/workers/sync/index.ts">Implement transactional or copy-on-write guard so partial writes never clobber last-known-good devices.</task>
+  <task id="T2a" parent="T2" artifact="nyu-device-roster/src/lib/sync-status.ts">Emit failure payload to status cache/banner with error code and operator guidance.</task>
+  <task id="T3" ac="AC3" artifact="nyu-device-roster/src/models/SyncEvent.ts">Extend sync_events schema/logging to capture errorCode, stackTraceRef, recommendation, triggerType, and anonymization snapshot.</task>
+  <task id="T4" ac="AC4" artifact="nyu-device-roster/scripts/reset-sync.ts">Create rollback/reset utility restoring Mongo devices from baseline snapshot with audit log entries.</task>
+  <task id="T4a" parent="T4" artifact="docs/runbook/sync-operations.md">Document rollback invocation, guardrails, and audit expectations.</task>
+  <task id="T5" ac="AC5" artifact="nyu-device-roster/src/lib/logging.ts">Add observability hooks/log-based metrics for repeated failures plus integration guidance for alerts.</task>
+  <task id="T5a" parent="T5" artifact="docs/runbook/sync-operations.md">Add troubleshooting matrix mapping error codes to remediation steps.</task>
+  <task id="T6" ac="AC6" artifact="tests">Add unit/integration tests covering failure propagation, dataset preservation, audit logging, and rollback behavior.</task>
+</task-list></tasks>
+  </story>
+
+  <acceptanceCriteria><criteria>
+  <criterion id="AC1">Sync pipeline detects failures at each stage and emits consistent AppError codes surfaced to `/api/sync` responses and status banner/tooling.</criterion>
+  <criterion id="AC2">Failures retain last-known-good dataset in MongoDB, avoiding partial writes, and update the banner with actionable guidance.</criterion>
+  <criterion id="AC3">Each failed run writes sync_events entry with error code, stack trace reference/log pointer, runId, anonymization state, and remediation hints.</criterion>
+  <criterion id="AC4">Operator-facing rollback/reset mechanism restores MongoDB baseline snapshot with documentation and audit logging.</criterion>
+  <criterion id="AC5">Observability includes metrics/alerts for repeated failures and runbook troubleshooting entries per error code.</criterion>
+  <criterion id="AC6">Automated tests simulate failure modes covering error propagation, dataset preservation, audit logging, and rollback tooling.</criterion>
+</criteria></acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+  <artifact path="docs/epics.md" title="Epic B – Sync Automation" section="Story B5">
+    Epic B5 defines the resilient error handling story: failed sync must retain last dataset, log actionable error code, and ship rollback tooling for fast recovery (docs/epics.md:150-160).
+  </artifact>
+  <artifact path="docs/PRD.md" title="PRD" section="FR-012 Error Handling">
+    FR-012 requires friendly error banners, retention of last-known-good data, and governance-ready logging whenever Sheets or Mongo issues occur (docs/PRD.md:160-190).
+  </artifact>
+  <artifact path="docs/architecture.md" title="Architecture" section="Error Handling + Logging Strategy">
+    Architecture specifies AppError taxonomy, structured logs with requestId/userEmail, and sync_events audits, all of which must be extended with error metadata (docs/architecture.md:210-250).
+  </artifact>
+  <artifact path="docs/architecture.md" title="Architecture" section="Sync Pipeline">
+    Pipeline description covers Cloud Tasks, workers, and audit expectations, highlighting where failure hooks and rollback safeguards should integrate (docs/architecture.md:230-270).
+  </artifact>
+  <artifact path="docs/runbook/sync-operations.md" title="Sync Operations Runbook" section="Error Codes & Monitoring">
+    Runbook already outlines structured error handling for manual/scheduled sync and needs expansion with troubleshooting + rollback instructions (docs/runbook/sync-operations.md:60-120).
+  </artifact>
+  <artifact path="docs/stories/2-3-implement-manual-sync-endpoint-with-optimistic-status.md" title="Story 2.3" section="Implementation Alignment">
+    Manual sync story ensures optimistic status + structured logging; this story must reuse the same channels for broadcasting failures (docs/stories/2-3-implement-manual-sync-endpoint-with-optimistic-status.md:37-56).
+  </artifact>
+  <artifact path="docs/stories/2-4-schedule-automated-ingest-via-app-engine-cron.md" title="Story 2.4" section="Implementation Alignment">
+    Scheduled sync story added overlap handling and config gating; failure handling must extend the same sync_events schema and telemetry to keep dashboards consistent (docs/stories/2-4-schedule-automated-ingest-via-app-engine-cron.md:43-55).
+  </artifact>
+</docs>
+    <code>
+  <artifact path="nyu-device-roster/src/lib/errors/AppError.ts" kind="utility" symbol="AppError" lines="1-160" reason="Central error taxonomy to extend with new FR-012 codes/narratives for the pipeline."></artifact>
+  <artifact path="nyu-device-roster/src/app/api/sync/manual/route.ts" kind="api" symbol="POST /api/sync/manual" lines="1-220" reason="Manual endpoint needs to emit updated error envelopes and banner payloads."></artifact>
+  <artifact path="nyu-device-roster/src/app/api/sync/run/route.ts" kind="api" symbol="POST /api/sync/run" lines="1-200" reason="Scheduled endpoint must reuse the same error handling and fallback semantics."></artifact>
+  <artifact path="nyu-device-roster/src/workers/sync/index.ts" kind="worker" symbol="runDeviceSync" lines="1-250" reason="Worker orchestrates fetch→normalize→upsert; transactional guards and rollback logic insert here."></artifact>
+  <artifact path="nyu-device-roster/src/workers/sync/transform.ts" kind="service" symbol="normalizeSheetRows" lines="1-200" reason="Transformer is wrapped for error detection; ensure no duplication when adding safeguards."></artifact>
+  <artifact path="nyu-device-roster/src/models/SyncEvent.ts" kind="model" symbol="SyncEventModel" lines="1-160" reason="Needs new fields for errorCode, stackTraceRef, recommendation, and trigger metadata."></artifact>
+  <artifact path="nyu-device-roster/src/lib/logging.ts" kind="utility" symbol="logger" lines="1-200" reason="Structured logging hooks must include failure context for dashboards and metrics."></artifact>
+  <artifact path="nyu-device-roster/scripts/reset-sync.ts" kind="script" symbol="reset-sync" lines="1-180" reason="New rollback utility restoring baseline dataset and recording audit events."></artifact>
+  <artifact path="nyu-device-roster/tests/integration/sync.spec.ts" kind="test" symbol="sync failure suite" lines="1-250" reason="Integration tests will simulate failure modes and verify dataset preservation + error propagation."></artifact>
+  <artifact path="nyu-device-roster/tests/unit/lib/errors.test.ts" kind="test" symbol="AppError tests" lines="1-160" reason="Unit coverage for new error codes and mapping helpers."></artifact>
+</code>
+    <dependencies>
+  <ecosystem name="node">
+    <package name="next" version="16.0.1" reason="Hosts sync APIs and status banner surfaces consuming new error envelopes."></package>
+    <package name="mongoose" version="^8.19.3" reason="Provides transactions/copy-on-write mechanics plus models impacted by rollback safeguards."></package>
+    <package name="@google-cloud/secret-manager" version="^6.1.1" reason="Ensures rollback script and sync pipeline continue to source credentials securely when handling failures."></package>
+    <package name="pino" version="^10.1.0" reason="Structured logging for error telemetry feeding alerts and dashboards."></package>
+    <package name="mongodb-memory-server" version="^10.3.0" reason="Test dependency to simulate failure/rollback scenarios reliably in integration suites."></package>
+    <package name="zod" version="^4.1.12" reason="Validation for error payloads, rollback command inputs, and sync status schemas."></package>
+  </ecosystem>
+</dependencies>
+  </artifacts>
+
+  <constraints>
+  <constraint>Error taxonomy must flow through AppError and existing API envelope—no ad-hoc strings or status codes outside the shared helper.</constraint>
+  <constraint>Pipeline must use transactional/copy-on-write semantics to avoid partial updates; rollback never reads stale environment variables (Secret Manager only).</constraint>
+  <constraint>sync_events entries are the single source of audit truth; new fields (errorCode, stackTraceRef, recommendation, triggerType) must be populated consistently for manual and scheduled runs.</constraint>
+  <constraint>Rollback tooling may only act on whitelisted collections (devices + related history) and must log the operator + snapshot source.</constraint>
+  <constraint>Status banner/error messaging must route through the same cache/helper introduced in Story 2.3 to prevent divergences between manual and scheduled flows.</constraint>
+</constraints>
+  <interfaces>
+  <interface name="AppError" kind="class" signature="new AppError({ code: string; message: string; status: number; context?: Record<string, unknown> })" >
+    <path>nyu-device-roster/src/lib/errors/AppError.ts</path>
+  </interface>
+  <interface name="POST /api/sync/manual" kind="REST" signature="POST /api/sync/manual → { data | error: { code, message, recommendation } }" >
+    <path>nyu-device-roster/src/app/api/sync/manual/route.ts</path>
+  </interface>
+  <interface name="POST /api/sync/run" kind="REST" signature="POST /api/sync/run → { data | error: { code, message, recommendation } }" >
+    <path>nyu-device-roster/src/app/api/sync/run/route.ts</path>
+  </interface>
+  <interface name="syncStatusCache" kind="function" signature="publishSyncStatus({ state: 'running'|'success'|'error'; errorCode?: string; guidance?: string }): Promise<void>" >
+    <path>nyu-device-roster/src/lib/sync-status.ts</path>
+  </interface>
+  <interface name="ResetSyncCLI" kind="script" signature="pnpm ts-node scripts/reset-sync.ts --snapshot ./data/baseline-devices.json --confirm" >
+    <path>nyu-device-roster/scripts/reset-sync.ts</path>
+  </interface>
+</interfaces>
+  <tests>
+    <standards>Vitest unit suites for error helpers and logging; integration tests with mongodb-memory-server for pipeline failures; CLI tests for rollback script using fixtures.</standards>
+    <locations>tests/unit/lib/errors.test.ts; tests/unit/lib/logging.test.ts; tests/integration/sync.spec.ts; tests/cli/reset-sync.test.ts</locations>
+    <ideas><idea ac="AC1">Throw simulated Sheets auth error and assert `/api/sync/manual` returns structured AppError code plus banner payload.</idea><idea ac="AC2">Induce Mongo failure mid-upsert and confirm dataset remains unchanged + status banner shows actionable guidance.</idea><idea ac="AC3">Verify sync_events entry includes errorCode, stackTraceRef, recommendation, triggerType for both manual and scheduled triggers.</idea><idea ac="AC4">Execute reset-sync CLI against fixture snapshot and confirm devices collection matches baseline plus audit log entry created.</idea><idea ac="AC5">Simulate repeated failures and assert log-based metrics increment plus runbook recommendations referenced.</idea><idea ac="AC6">End-to-end test ensuring rollback + retry path eventually leads to success with same AppError taxonomy.</idea></ideas>
+  </tests>
+</story-context>

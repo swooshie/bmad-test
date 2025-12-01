@@ -5,12 +5,12 @@ import { logDeviceDrawerAction } from "@/lib/logging";
 
 type DrawerActionResult = { success: true } | { success: false; message: string };
 
-export const exportAuditSnapshot = async (deviceId: string): Promise<DrawerActionResult> => {
+export const exportAuditSnapshot = async (serial: string): Promise<DrawerActionResult> => {
   try {
     const response = await fetch(API_ROUTES.deviceDrawerExport, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deviceId }),
+      body: JSON.stringify({ serial }),
     });
     const payload = (await response.json()) as {
       data?: { url: string };
@@ -22,7 +22,7 @@ export const exportAuditSnapshot = async (deviceId: string): Promise<DrawerActio
     logDeviceDrawerAction({
       event: "DEVICE_DRAWER_ACTION",
       action: "EXPORT_AUDIT_SNAPSHOT",
-      deviceId,
+      serial,
       outcome: "success",
     });
     return { success: true };
@@ -30,7 +30,7 @@ export const exportAuditSnapshot = async (deviceId: string): Promise<DrawerActio
     logDeviceDrawerAction({
       event: "DEVICE_DRAWER_ACTION",
       action: "EXPORT_AUDIT_SNAPSHOT",
-      deviceId,
+      serial,
       outcome: "failure",
       error: error instanceof Error ? error.message : String(error),
     });
@@ -38,12 +38,12 @@ export const exportAuditSnapshot = async (deviceId: string): Promise<DrawerActio
   }
 };
 
-export const initiateHandoff = async (deviceId: string): Promise<DrawerActionResult> => {
+export const initiateHandoff = async (serial: string): Promise<DrawerActionResult> => {
   try {
     const response = await fetch(API_ROUTES.deviceDrawerHandoff, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deviceId }),
+      body: JSON.stringify({ serial }),
     });
     const payload = (await response.json()) as {
       data?: { status: string };
@@ -55,7 +55,7 @@ export const initiateHandoff = async (deviceId: string): Promise<DrawerActionRes
     logDeviceDrawerAction({
       event: "DEVICE_DRAWER_ACTION",
       action: "HANDOFF_INITIATED",
-      deviceId,
+      serial,
       outcome: "success",
     });
     return { success: true };
@@ -63,7 +63,7 @@ export const initiateHandoff = async (deviceId: string): Promise<DrawerActionRes
     logDeviceDrawerAction({
       event: "DEVICE_DRAWER_ACTION",
       action: "HANDOFF_INITIATED",
-      deviceId,
+      serial,
       outcome: "failure",
       error: error instanceof Error ? error.message : String(error),
     });

@@ -1,6 +1,6 @@
 # Story 2.1: Build Google Sheets fetch module
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -22,15 +22,15 @@ As a data pipeline developer, I want a reusable Google Sheets fetch module that 
 
 ## Tasks / Subtasks
 
-- [ ] Define module interface in `lib/google-sheets.ts`, including inputs (sheetId, tab name, credential handle) and structured output shape with headers + typed rows. (AC: 1-2,4)
-  - [ ] Document usage for `workers/sync` and `app/api/sync/run` so orchestration layers call a single entry point. (AC: 4)
-- [ ] Implement Secret Manager credential loader (reuse `lib/auth.ts` patterns) to obtain service account key JSON securely at runtime. (AC: 1)
-  - [ ] Validate configuration (sheetId present, tab name optional) before making API calls; fail fast with descriptive errors. (AC: 1,3)
-- [ ] Build Google Sheets fetch logic with pagination support, type coercion helpers, and structured error mapping with Pino logging hooks for requestId/sheetId metrics. (AC: 2-4)
-  - [ ] Include hooks for retry/backoff so Cloud Tasks can plug in policy without duplicating logic. (AC: 4)
-- [ ] Write unit and integration tests covering success, pagination edge cases, date/number conversions, and each structured error code path. (AC: 5)
-  - [ ] Add contract tests ensuring downstream transformer receives consistent payload shape. (AC: 2,5)
-- [ ] Update docs/runbook (`docs/runbook/sync-operations.md`) with instructions for configuring sheet IDs, monitoring logs, and interpreting error codes. (AC: 3-4)
+- [x] Define module interface in `lib/google-sheets.ts`, including inputs (sheetId, tab name, credential handle) and structured output shape with headers + typed rows. (AC: 1-2,4)
+  - [x] Document usage for `workers/sync` and `app/api/sync/run` so orchestration layers call a single entry point. (AC: 4)
+- [x] Implement Secret Manager credential loader (reuse `lib/auth.ts` patterns) to obtain service account key JSON securely at runtime. (AC: 1)
+  - [x] Validate configuration (sheetId present, tab name optional) before making API calls; fail fast with descriptive errors. (AC: 1,3)
+- [x] Build Google Sheets fetch logic with pagination support, type coercion helpers, and structured error mapping with Pino logging hooks for requestId/sheetId metrics. (AC: 2-4)
+  - [x] Include hooks for retry/backoff so Cloud Tasks can plug in policy without duplicating logic. (AC: 4)
+- [x] Write unit and integration tests covering success, pagination edge cases, date/number conversions, and each structured error code path. (AC: 5)
+  - [x] Add contract tests ensuring downstream transformer receives consistent payload shape. (AC: 2,5)
+- [x] Update docs/runbook (`docs/runbook/sync-operations.md`) with instructions for configuring sheet IDs, monitoring logs, and interpreting error codes. (AC: 3-4)
 
 ## Dev Notes
 
@@ -57,7 +57,7 @@ As a data pipeline developer, I want a reusable Google Sheets fetch module that 
 
 ## Change Log
 
-- _Pending initial implementation._
+- 2025-11-11: Added Google Sheets fetch module, contract tests, sync operations runbook, and advanced story to review after running `npm test`.
 
 ## Dev Agent Record
 
@@ -71,6 +71,21 @@ As a data pipeline developer, I want a reusable Google Sheets fetch module that 
 
 ### Debug Log References
 
+1. Map module interface + configuration validation in `nyu-device-roster/src/lib/google-sheets.ts`, wiring Secret Manager credentials + logging hooks (AC1, AC4).
+2. Implement fetch + pagination + type coercion + structured error codes and retry/backoff hooks in the same module (AC2-4).
+3. Cover success/pagination/error/type cases with Vitest (`nyu-device-roster/tests/unit/lib/google-sheets.test.ts`) and seed contract fixtures (AC5).
+4. Document orchestrator usage in story + `docs/runbook/sync-operations.md`, then update File List/Change Log before closing tasks (AC3-4).
+
 ### Completion Notes List
 
+- Implemented `nyu-device-roster/src/lib/google-sheets.ts` to supply credential loading, pagination, typed rows, metrics logging, and structured `SheetFetchError` codes that satisfy AC1-4.
+- Added `nyu-device-roster/tests/unit/lib/google-sheets.test.ts` with coverage for success, pagination, type coercion, retries, and error mapping plus executed `npm test` (Vitest) per AC5.
+- Authored `docs/runbook/sync-operations.md` describing worker/API usage, configuration, and operational recovery steps (AC3-4).
+- Updated story + sprint tracking files for the ready-for-dev → in-progress → review transitions and documented the work below.
+
 ### File List
+- nyu-device-roster/src/lib/google-sheets.ts
+- nyu-device-roster/tests/unit/lib/google-sheets.test.ts
+- docs/runbook/sync-operations.md
+- docs/stories/2-1-build-google-sheets-fetch-module.md
+- docs/sprint-status.yaml

@@ -1,0 +1,163 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>2</storyId>
+    <title>telemetry-and-sync-health-summaries</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-17T16:39:22Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/4-2-telemetry-and-sync-health-summaries.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As a demo operator</asA>
+    <iWant>I want telemetry on sync duration, row counts, and failure trends</iWant>
+    <soThat>so that I can address issues before stakeholders notice</soThat>
+    <tasks><task id="T1" ac="AC1">
+  <summary>Instrument sync telemetry for manual and scheduled runs capturing durationMs, rowsProcessed, success/failure, and link to existing sync event identifiers.</summary>
+  <subtask>Add indexes or rollups to support recent vs cumulative aggregations without slowing sync.</subtask>
+</task>
+<task id="T2" ac="AC2">
+  <summary>Implement `/api/metrics` endpoint returning aggregates for last 12 hours and cumulative totals using the standardized response envelope and Pino logging.</summary>
+  <subtask>Enforce manager/lead access and record audit/log entries for each metrics fetch.</subtask>
+</task>
+<task id="T3" ac="AC3">
+  <summary>Add Slack/email webhook scaffold behind a feature flag with configuration notes for future alerting.</summary>
+  <subtask>Document retry/backoff expectations and monitoring hooks for webhook delivery.</subtask>
+</task>
+<task id="T4" ac="AC1,AC2,AC3">
+  <summary>Testing and dashboards: add unit/integration coverage for metrics aggregation/access control and provide dashboard/query examples plus empty/error states.</summary>
+  <subtask>Include fixtures for manual vs scheduled runs and ensure audit logging of metrics requests.</subtask>
+</task></tasks>
+  </story>
+
+  <acceptanceCriteria><criterion id="AC1">
+  <statement>Collect metrics for manual vs scheduled sync (durationMs, rowsProcessed, success/failure).</statement>
+  <source>docs/stories/4-2-telemetry-and-sync-health-summaries.md#acceptance-criteria</source>
+</criterion>
+<criterion id="AC2">
+  <statement>Expose `/api/metrics` endpoint returning aggregates for last 12 hours and cumulative totals.</statement>
+  <source>docs/stories/4-2-telemetry-and-sync-health-summaries.md#acceptance-criteria</source>
+</criterion>
+<criterion id="AC3">
+  <statement>Add optional webhook integration placeholder (Slack/email) for future alerting with configuration notes.</statement>
+  <source>docs/stories/4-2-telemetry-and-sync-health-summaries.md#acceptance-criteria</source>
+</criterion></acceptanceCriteria>
+
+  <artifacts>
+    <docs><doc>
+  <path>docs/epics.md</path>
+  <title>Epic D – Governance & Observability Guardrails</title>
+  <section>Story [D2]: Telemetry and sync health summaries</section>
+  <snippet>Epic D2 defines telemetry requirements: metrics for manual vs scheduled sync, `/api/metrics` aggregates, and optional webhook placeholder.</snippet>
+</doc>
+<doc>
+  <path>docs/PRD.md</path>
+  <title>Product Requirements Document</title>
+  <section>FR-010 Audit Trail</section>
+  <snippet>FR-010 calls for audit-ready telemetry so managers can review recent sync runs with actor, action, status, and timing information.</snippet>
+</doc>
+<doc>
+  <path>docs/architecture.md</path>
+  <title>Architecture Overview</title>
+  <section>Observability & audit logging stack</section>
+  <snippet>Architecture describes Pino structured logs flowing to Cloud Logging with metrics for sync latency and failures, informing telemetry implementation.</snippet>
+</doc>
+<doc>
+  <path>docs/architecture.md</path>
+  <title>Architecture Overview</title>
+  <section>Performance Considerations</section>
+  <snippet>Performance guidance recommends indexed time-window queries and avoiding long-running Mongo pipelines for telemetry aggregations.</snippet>
+</doc>
+<doc>
+  <path>stories/4-1-audit-api-and-dashboard-panel.md</path>
+  <title>Story 4.1: audit-api-and-dashboard-panel</title>
+  <section>Learnings and logging patterns</section>
+  <snippet>Previous story establishes governance logging patterns and TTL-disabled audit retention to reuse for telemetry responses.</snippet>
+</doc></docs>
+    <code><code>
+  <path>nyu-device-roster/src/lib/audit/syncEvents.ts</path>
+  <kind>audit-service</kind>
+  <symbol>recordAnonymizationToggleEvent</symbol>
+  <lines>1-120</lines>
+  <reason>Existing audit event recording utility; telemetry can extend similar patterns for metrics access logging.</reason>
+</code>
+<code>
+  <path>nyu-device-roster/src/models/SyncEvent.ts</path>
+  <kind>data-model</kind>
+  <symbol>SyncEventModel</symbol>
+  <lines>1-80</lines>
+  <reason>Current sync event schema; telemetry may add fields or parallel collection for metrics aggregation.</reason>
+</code>
+<code>
+  <path>nyu-device-roster/src/lib/logging.ts</path>
+  <kind>logging-util</kind>
+  <symbol>logger</symbol>
+  <lines>1-90</lines>
+  <reason>Pino logger used for audit trail; metrics endpoint should log access and outcomes consistently.</reason>
+</code>
+<code>
+  <path>nyu-device-roster/src/lib/db.ts</path>
+  <kind>db-helper</kind>
+  <symbol>connectToDatabase</symbol>
+  <lines>1-80</lines>
+  <reason>Shared Mongo connection helper to reuse for metrics aggregation and telemetry writes.</reason>
+</code></code>
+    <dependencies><dependency ecosystem="node">
+  <package>next@16.0.1</package>
+  <notes>App Router hosting the `/api/metrics` endpoint and governance UI.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>mongoose@8.19.3</package>
+  <notes>MongoDB ODM for telemetry persistence and aggregations.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>pino@10.1.0</package>
+  <notes>Structured logging used for metrics access logging and potential webhook delivery traces.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>next-auth@4.24.13</package>
+  <notes>Authentication layer ensuring metrics access is restricted to authorized managers/leads.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>react@19.2.0</package>
+  <notes>Frontend for potential metrics dashboard or UI widgets.</notes>
+</dependency></dependencies>
+  </artifacts>
+
+  <constraints><constraint>Reuse standardized API envelope and governance logging; include requestId/userEmail in metrics responses and logs.</constraint>
+<constraint>Optimize Mongo aggregations with indexed time-window queries to avoid performance regressions on App Engine.</constraint>
+<constraint>Ensure authentication/allowlist enforcement for metrics access per PRD and epic prerequisites.</constraint>
+<constraint>Preserve TTL-disabled audit retention patterns from Story 4-1 when capturing telemetry access.</constraint></constraints>
+  <interfaces><interface>
+  <name>SyncEventAttributes</name>
+  <kind>Mongoose schema</kind>
+  <signature>{ eventType: SyncEventType; route: string; method: string; reason?: string; requestId?: string; ip?: string; userEmail?: string | null; metadata?: Record<string, unknown>; createdAt: Date }</signature>
+  <path>nyu-device-roster/src/models/SyncEvent.ts</path>
+  <reason>Baseline audit event shape; telemetry may extend or parallel this for metrics aggregation.</reason>
+</interface>
+<interface>
+  <name>connectToDatabase</name>
+  <kind>db-helper</kind>
+  <signature>async function connectToDatabase(uri?: string): Promise<typeof mongoose></signature>
+  <path>nyu-device-roster/src/lib/db.ts</path>
+  <reason>Shared DB connector used by audit and sync flows; telemetry should reuse.</reason>
+</interface>
+<interface>
+  <name>logger</name>
+  <kind>logging-util</kind>
+  <signature>logger = pino({ level, base: undefined })</signature>
+  <path>nyu-device-roster/src/lib/logging.ts</path>
+  <reason>Pino logger configuration to be reused for metrics logging and webhook traces.</reason>
+</interface></interfaces>
+  <tests>
+    <standards>Use Vitest for unit tests and integration tests for API routes; consider Playwright for any metrics UI surfaces.</standards>
+    <locations><location>nyu-device-roster/tests/unit</location>
+<location>nyu-device-roster/tests/integration</location>
+<location>nyu-device-roster/tests/fixtures</location></locations>
+    <ideas><idea ac="AC1">Unit-test telemetry ingestion to ensure manual vs scheduled runs record durationMs and rowsProcessed with correct flags.</idea>
+<idea ac="AC2">Integration-test `/api/metrics` for 12-hour and cumulative aggregations, enforcing auth and logging request metadata.</idea>
+<idea ac="AC3">Feature-flag test for webhook scaffold ensuring disabled-by-default state and documented config paths.</idea>
+<idea ac="AC2">Performance test aggregation queries to confirm indexed time-window queries stay within App Engine limits.</idea></ideas>
+  </tests>
+</story-context>

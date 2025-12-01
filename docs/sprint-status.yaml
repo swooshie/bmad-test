@@ -1,41 +1,55 @@
 ---
-generated: 2025-11-04 19:59:24.000000000 Z
+# generated: 2025-11-19 11:33:54 EST
+# project: BMAD Demo NodeJS Project
+# project_key: BMAD Demo NodeJS Project
+# tracking_system: file-system
+# story_location: "{project-root}/docs/stories"
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic exists in epic file but not contexted
+#   - contexted: Next epic tech context created by *epic-tech-context (required)
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - drafted: Story file created in stories folder by *create-story
+#   - drafted: Draft approved and story context created by *story-ready
+#   - in-progress: Developer actively working on implementation by *dev-story
+#   - review: Implementation complete, ready for review by *code-review
+#   - done: Story completed by *story-done
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - completed: Retrospective has been done by *retrospective
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epics should be 'contexted' before stories can be 'drafted'
+# - SM typically drafts next story ONLY after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', SM reviews, then Dev moves to 'done'
+
+generated: 2025-11-19 11:33:54 EST
 project: BMAD Demo NodeJS Project
 project_key: BMAD Demo NodeJS Project
 tracking_system: file-system
 story_location: "{project-root}/docs/stories"
+
 development_status:
-  epic-1: backlog
-  1-1-persist-admissions-manager-allowlist: review
-  1-2-implement-google-oauth-restricted-to-admissions-managers: review
-  1-3-session-middleware-and-audit-logging-for-auth-failures: review
-  1-4-secure-secrets-and-configuration-loading: review
-  1-5-allowlist-maintenance-endpoint-with-role-gating: review
+  epic-1: contexted
+  1-1-audit-sheet-serial-integrity: drafted
+  1-2-backfill-mongodb-with-serial-keys: review
+  1-3-update-sync-and-api-to-use-serial: in-progress
   epic-1-retrospective: optional
-  epic-2: backlog
-  2-1-build-google-sheets-fetch-module: ready-for-dev
-  2-2-normalize-and-upsert-devices-into-mongodb: ready-for-dev
-  2-3-implement-manual-sync-endpoint-with-optimistic-status: drafted
-  2-4-schedule-automated-ingest-via-app-engine-cron: drafted
-  2-5-resilient-error-handling-and-rollback-safeguards: drafted
+
+  epic-2: contexted
+  2-1-capture-dynamic-columns-from-sheet: review
+  2-2-persist-dynamic-columns-in-mongodb: review
+  2-3-render-dynamic-columns-in-dashboard-ui: review
   epic-2-retrospective: optional
+
   epic-3: backlog
-  3-1-authenticated-shell-with-sync-status-banner: drafted
-  3-2-spreadsheet-grid-with-performant-sort-filter: backlog
-  3-3-governance-cues-for-offboarding-workflows: backlog
-  3-4-anonymization-toggle-ux-with-deterministic-placeholders: backlog
-  3-5-performance-instrumentation-and-lighthouse-checks: backlog
-  3-6-governance-reminder-banner-anonymization-presets: backlog
-  3-7-device-detail-drawer-with-audit-timeline-ribbon: backlog
-  3-8-gitlab-style-column-filter-chips-halo-highlight: backlog
-  3-9-icon-first-action-controls-animation-system: backlog
-  3-10-responsive-adaptation-bottom-dock-navigation: backlog
-  3-11-error-empty-and-edge-state-blueprint: backlog
+  3-1-emit-structured-sync-telemetry: review
+  3-2-detect-and-alert-on-schema-changes: review
+  3-3-provide-recovery-and-dry-run-mode: review
   epic-3-retrospective: optional
-  epic-4: backlog
-  4-1-audit-api-and-dashboard-panel: backlog
-  4-2-telemetry-and-sync-health-summaries: backlog
-  4-3-demo-readiness-smoke-test-suite: backlog
-  4-4-rollback-and-data-snapshot-utilities: backlog
-  4-5-accessibility-compliance-testing-harness: backlog
-  epic-4-retrospective: optional

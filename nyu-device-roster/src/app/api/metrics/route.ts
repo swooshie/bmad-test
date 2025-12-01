@@ -1,26 +1,38 @@
 'use server';
 
-import { NextResponse } from "next/server";
-import { z as zod } from "zod";
+import { NextRequest, NextResponse } from "next/server";
+import * as z from "zod";
 
-import { logPerformanceMetric } from "@/lib/logging";
+import { withSession, type NextRequestWithSession } from "@/lib/auth/sessionMiddleware";
+import { recordAuditLog } from "@/lib/audit/auditLogs";
+import connectToDatabase from "@/lib/db";
+import { logPerformanceMetric, logger } from "@/lib/logging";
+import {
+  aggregateSyncMetrics,
+  type SyncAggregate,
+  type SyncAggregateTotals,
+} from "@/lib/metrics/syncAggregations";
 
-const MetricsSchema = zod.object({
-  metrics: zod
+const WEBHOOK_ENABLED = process.env.TELEMETRY_WEBHOOK_ENABLED === "true";
+const WEBHOOK_URL = process.env.TELEMETRY_WEBHOOK_URL;
+const WEBHOOK_CHANNEL = process.env.TELEMETRY_WEBHOOK_CHANNEL;
+
+const MetricsSchema = z.object({
+  metrics: z
     .array(
-      zod.object({
-        metric: zod.string().min(1),
-        value: zod.number(),
-        threshold: zod.number().optional(),
-        context: zod.record(zod.union([zod.string(), zod.number(), zod.boolean()])).optional(),
-        requestId: zod.string().optional(),
-        anonymized: zod.boolean().optional(),
-        timestamp: zod.string().optional(),
+      z.object({
+        metric: z.string().min(1),
+        value: z.number(),
+        threshold: z.number().optional(),
+        context: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
+        requestId: z.string().optional(),
+        anonymized: z.boolean().optional(),
+        timestamp: z.string().optional(),
       })
     )
     .min(1),
-  requestId: zod.string().optional(),
-  anonymized: zod.boolean().optional(),
+  requestId: z.string().optional(),
+  anonymized: z.boolean().optional(),
 });
 
 export const POST = async (request: Request) => {
@@ -34,7 +46,20 @@ export const POST = async (request: Request) => {
     );
   }
 
-  const parsed = MetricsSchema.safeParse(body);
+  let parsed;
+  try {
+    parsed = MetricsSchema.safeParse(body);
+  } catch (error) {
+    logger.error({ event: "METRICS_PARSE_ERROR", error });
+    return NextResponse.json(
+      {
+        data: null,
+        error: { code: "INVALID_METRIC_PAYLOAD", message: "Metrics payload is invalid" },
+      },
+      { status: 400 }
+    );
+  }
+
   if (!parsed.success) {
     return NextResponse.json(
       {
@@ -70,3 +95,95 @@ export const POST = async (request: Request) => {
     error: null,
   });
 };
+
+export const GET = withSession(async (request: NextRequestWithSession) => {
+  const requestId = request.headers.get("x-request-id") ?? undefined;
+  const actorEmail = request.session.user?.email ?? null;
+  const managerRole = request.session.user?.managerRole ?? null;
+
+  if (managerRole !== "manager" && managerRole !== "lead") {
+    await recordAuditLog({
+      eventType: "governance",
+      action: "METRICS_FETCH",
+      actor: actorEmail,
+      status: "error",
+      errorCode: "FORBIDDEN",
+      context: { requestId, managerRole },
+    });
+
+    return NextResponse.json(
+      {
+        data: null,
+        error: { code: "FORBIDDEN", message: "Manager or lead access required" },
+      },
+      { status: 403 }
+    );
+  }
+
+  try {
+    await connectToDatabase();
+
+    const last12h = await aggregateSyncMetrics(new Date(Date.now() - 12 * 60 * 60 * 1000));
+    const cumulative = await aggregateSyncMetrics();
+
+    const webhook = {
+      enabled: WEBHOOK_ENABLED,
+      configured: WEBHOOK_ENABLED && Boolean(WEBHOOK_URL),
+      urlPresent: Boolean(WEBHOOK_URL),
+      channel: WEBHOOK_CHANNEL ?? null,
+      notes:
+        "Set TELEMETRY_WEBHOOK_ENABLED=true with TELEMETRY_WEBHOOK_URL/TELEMETRY_WEBHOOK_CHANNEL to emit alerts; disabled by default as scaffold.",
+    };
+
+    await recordAuditLog({
+      eventType: "governance",
+      action: "METRICS_FETCH",
+      actor: actorEmail,
+      status: "success",
+      context: { requestId, managerRole, windows: ["last12h", "cumulative"] },
+    });
+
+    logger.info(
+      { event: "METRICS_FETCH", requestId, actor: actorEmail, managerRole },
+      "Metrics endpoint served aggregates"
+    );
+
+    return NextResponse.json({
+      data: {
+        asOf: new Date().toISOString(),
+        last12h,
+        cumulative,
+        webhook,
+        schemaChange: cumulative.latestSchemaChange
+          ? {
+              detectedAt: cumulative.latestSchemaChange.detectedAt,
+              added: cumulative.latestSchemaChange.added,
+              removed: cumulative.latestSchemaChange.removed,
+              renamed: cumulative.latestSchemaChange.renamed,
+              currentVersion: cumulative.latestSchemaChange.currentVersion ?? null,
+              previousVersion: cumulative.latestSchemaChange.previousVersion ?? null,
+            }
+          : null,
+      },
+      error: null,
+    });
+  } catch (error) {
+    logger.error({ event: "METRICS_FETCH_FAILED", requestId, error }, "Failed to compute metrics");
+    await recordAuditLog({
+      eventType: "governance",
+      action: "METRICS_FETCH",
+      actor: actorEmail,
+      status: "error",
+      errorCode: "METRICS_FAILURE",
+      context: { requestId },
+    });
+
+    return NextResponse.json(
+      {
+        data: null,
+        error: { code: "METRICS_FAILURE", message: "Unable to compute telemetry." },
+      },
+      { status: 500 }
+    );
+  }
+});

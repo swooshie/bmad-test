@@ -1,0 +1,115 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>C</epicId>
+    <storyId>3.1</storyId>
+    <title>authenticated-shell-with-sync-status-banner</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-11</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/3-1-authenticated-shell-with-sync-status-banner.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As an NYU admissions manager</asA>
+    <iWant>I want the dashboard shell to confirm my authenticated session and display live sync state</iWant>
+    <soThat>I can trust the device roster as soon as the page loads</soThat>
+    <tasks><task-list>
+  <task id="T1" ac="AC1" artifact="app/(manager)/layout.tsx">Gate the manager layout with NextAuth session loader and allowlist check, redirecting unauthenticated visitors.</task>
+  <task id="T1a" parent="T1" artifact="lib/logging.ts">Emit structured audit logs for rejections using the shared Pino schema.</task>
+  <task id="T2" ac="AC2" artifact="app/(manager)/components/SyncStatusBanner.tsx">Build sync status banner component with success/running/error variants that meet NYU branding and WCAG contrast.</task>
+  <task id="T2a" parent="T2" artifact="app/(manager)/components/SyncStatusBanner.tsx">Implement aria-live announcements, keyboard focus cues, and responsive behavior for desktop/tablet breakpoints.</task>
+  <task id="T3" ac="AC3" artifact="app/(manager)/hooks/useSyncStatus.ts">Create React Query hook that fetches latest sync metadata (timestamp, operator, state) from sync events API.</task>
+  <task id="T3a" parent="T3" artifact="app/(manager)/components/SyncStatusBanner.tsx">Wire manual refresh CTA to `/api/sync/manual` with optimistic “running” feedback within 200 ms.</task>
+  <task id="T4" ac="AC4" artifact="app/(manager)/components/SyncStatusBanner.tsx">Render failure states using error codes/guidance from sync pipeline while retaining last-known-good data.</task>
+  <task id="T4a" parent="T4" artifact="docs/runbook/sync-operations.md">Document failure messaging patterns and link to troubleshooting guidance.</task>
+  <task id="T5" ac="AC5" artifact="docs/stories/3-1-authenticated-shell-with-sync-status-banner.md">Document aria labels, focus order, responsive breakpoints, and component contracts.</task>
+  <task id="T6" ac="AC1-AC4" artifact="tests">Add unit/UI tests covering auth redirects, banner states, manual refresh optimistic flow, and error handling.</task>
+</task-list></tasks>
+  </story>
+
+  <acceptanceCriteria><criteria>
+  <criterion id="AC1">Authenticated shell runs NextAuth session check on every dashboard load, redirecting unauthenticated visitors and logging rejections.</criterion>
+  <criterion id="AC2">Sync status banner displays success/running/error states with NYU-branded WCAG-compliant styling and screen-reader announcements.</criterion>
+  <criterion id="AC3">Manual refresh CTA within the banner calls `/api/sync/manual`, providing optimistic “running” feedback within 200 ms.</criterion>
+  <criterion id="AC4">Banner handles failure signals from sync events, retaining last-known-good data while surfacing actionable error summaries aligned with FR-012.</criterion>
+  <criterion id="AC5">Implementation documents accessibility (aria labels, focus order) and responsive breakpoints so desktop/tablet layouts preserve authenticated shell guarantees.</criterion>
+</criteria></acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+  <artifact path="docs/epics.md" title="Epic C – Manager Dashboard Experience" section="Story C1">
+    Story C1 defines the authenticated shell and sync banner expectations, tying the UI to NextAuth gating, status visibility, and branding rules (docs/epics.md:165-180).
+  </artifact>
+  <artifact path="docs/PRD.md" title="PRD" section="FR-005 Manual Refresh & FR-008 Sync Status Banner">
+    FR-005 and FR-008 specify that authenticated managers must see last sync state immediately, with manual refresh CTA completing within 5 seconds and banner colors meeting NYU brand guidance (docs/PRD.md:145-175).
+  </artifact>
+  <artifact path="docs/PRD.md" title="PRD" section="Accessibility Requirements">
+    Accessibility section mandates aria-live messaging, keyboard focus order, and responsive layouts for the dashboard shell (docs/PRD.md:200-214).
+  </artifact>
+  <artifact path="docs/architecture.md" title="Architecture" section="Manager Shell & Sync Telemetry">
+    Architecture file documents the App Router layout, React Query data hooks, and `/api/sync/manual` optimistic pipeline consumed by the banner (docs/architecture.md:45-140, 230-256).
+  </artifact>
+  <artifact path="docs/stories/2-3-implement-manual-sync-endpoint-with-optimistic-status.md" title="Story 2.3" section="Implementation Alignment">
+    Story 2.3 establishes the optimistic manual refresh flow and status broadcast helper that the shell must reuse (docs/stories/2-3-implement-manual-sync-endpoint-with-optimistic-status.md:37-56).
+  </artifact>
+  <artifact path="docs/stories/2-5-resilient-error-handling-and-rollback-safeguards.md" title="Story 2.5" section="Acceptance Criteria">
+    Story 2.5 outlines the error taxonomy and failure messaging that the banner needs to surface without clearing last-known-good data (docs/stories/2-5-resilient-error-handling-and-rollback-safeguards.md:17-35).
+  </artifact>
+  <artifact path="docs/runbook/sync-operations.md" title="Sync Operations Runbook" section="Manual API integration">
+    Runbook describes how `/api/sync/manual` and sync status telemetry behave, providing operator notes the UI should reference for troubleshooting links (docs/runbook/sync-operations.md:1-80).
+  </artifact>
+</docs>
+    <code>
+  <artifact path="app/(manager)/layout.tsx" kind="layout" symbol="ManagerLayout" lines="1-160" reason="Top-level shell enforcing session gate and rendering sync banner in the hero area."></artifact>
+  <artifact path="app/(manager)/components/SyncStatusBanner.tsx" kind="component" symbol="SyncStatusBanner" lines="1-200" reason="Primary UI component implementing status states, CTA, and accessibility attributes."></artifact>
+  <artifact path="app/(manager)/hooks/useSyncStatus.ts" kind="hook" symbol="useSyncStatus" lines="1-120" reason="React Query hook fetching sync metadata and exposing optimistic updates for the banner."></artifact>
+  <artifact path="app/api/sync/manual/route.ts" kind="api" symbol="POST /api/sync/manual" lines="1-220" reason="Endpoint invoked by the CTA; must surface optimistic state and structured errors."></artifact>
+  <artifact path="app/api/sync/run/route.ts" kind="api" symbol="POST /api/sync/run" lines="1-200" reason="Scheduled endpoint providing sync events; banner consumes its outputs for latest state."></artifact>
+  <artifact path="app/api/sync-events/route.ts" kind="api" symbol="GET /api/sync-events" lines="1-180" reason="Feed for status history powering the banner timestamp + operator details."></artifact>
+  <artifact path="lib/auth/session.ts" kind="utility" symbol="requireManagerSession" lines="1-140" reason="Shared helper to validate NextAuth session and allowlist before rendering shell."></artifact>
+  <artifact path="lib/logging.ts" kind="utility" symbol="logger" lines="1-200" reason="Structured logging used for auth rejections and CTA usage instrumentation."></artifact>
+  <artifact path="tests/unit/app/manager/SyncStatusBanner.test.tsx" kind="test" symbol="SyncStatusBanner tests" lines="1-200" reason="Unit tests for banner state transitions and accessibility behavior."></artifact>
+  <artifact path="tests/integration/dashboard-shell.spec.ts" kind="test" symbol="Dashboard shell integration" lines="1-180" reason="Playwright test validating auth redirects, optimistic CTA, and failure messaging."></artifact>
+</code>
+    <dependencies>
+  <ecosystem name="node">
+    <package name="next" version="16.0.1" reason="App Router framework powering the authenticated layout and API routes."></package>
+    <package name="next-auth" version="^4.24.13" reason="Session management for gating the dashboard shell."></package>
+    <package name="react" version="19.2.0" reason="UI framework for banner components and hooks."></package>
+    <package name="@tanstack/react-query" version="^5.0.0" reason="Data fetching/cache layer for sync status hook and optimistic updates."></package>
+    <package name="pino" version="^10.1.0" reason="Structured logging for auth rejection and CTA audit events."></package>
+    <package name="tailwindcss" version="^4.0.0" reason="Styling system to enforce NYU brand palette and responsive rules."></package>
+  </ecosystem>
+</dependencies>
+  </artifacts>
+
+  <constraints>
+  <constraint>All authentication logic must rely on shared NextAuth session utilities so redirects, logging, and allowlist checks remain consistent with Epic A.</constraint>
+  <constraint>Sync status banner must consume telemetry from the established sync status helper/sync events rather than polling bespoke endpoints.</constraint>
+  <constraint>Manual refresh CTA must reuse the `/api/sync/manual` optimistic flow without duplicating retry logic, and log usage via shared logging helpers.</constraint>
+  <constraint>UI styling must adhere to documented NYU brand tokens and meet WCAG AA contrast for success/running/error states.</constraint>
+  <constraint>Failure messaging must surface FR-012 error codes without clearing last-known-good data, deferring to pipeline safeguards from Story 2.5.</constraint>
+</constraints>
+  <interfaces>
+  <interface name="requireManagerSession" kind="function" signature="requireManagerSession(): Promise<{ user: ManagerUser }>" >
+    <path>lib/auth/session.ts</path>
+  </interface>
+  <interface name="useSyncStatus" kind="hook" signature="useSyncStatus(): { state: 'success'|'running'|'error'; timestamp: string; operator?: string; errorCode?: string }" >
+    <path>app/(manager)/hooks/useSyncStatus.ts</path>
+  </interface>
+  <interface name="SyncStatusBanner" kind="component" signature="<SyncStatusBanner status={state} timestamp={timestamp} operator={operator} onManualRefresh={handler} />" >
+    <path>app/(manager)/components/SyncStatusBanner.tsx</path>
+  </interface>
+  <interface name="POST /api/sync/manual" kind="REST" signature="POST /api/sync/manual → { data: { taskId, optimisticToken }, error: null } | { data: null, error: { code, message } }" >
+    <path>app/api/sync/manual/route.ts</path>
+  </interface>
+  <interface name="GET /api/sync-events/latest" kind="REST" signature="GET /api/sync-events/latest → { data: { status, timestamp, operator, errorCode }, error: null }" >
+    <path>app/api/sync-events/route.ts</path>
+  </interface>
+</interfaces>
+  <tests>
+    <standards>Follow repo conventions: colocated React Testing Library unit tests, Playwright integration for authenticated flows, and mocked NextAuth sessions in Vitest.</standards>
+    <locations>app/(manager)/components/__tests__/SyncStatusBanner.test.tsx; tests/integration/dashboard-shell.spec.ts; app/(manager)/hooks/__tests__/useSyncStatus.test.ts</locations>
+    <ideas><idea ac="AC1">Unit test verifying unauthenticated layout invocation redirects to login and logs rejection.</idea><idea ac="AC2">Snapshot/accessibility test ensuring banner states meet contrast and aria-live updates when status changes.</idea><idea ac="AC3">Integration test hitting manual refresh CTA to confirm optimistic “running” state within 200 ms and reconciliation on completion.</idea><idea ac="AC4">Failure scenario test stubbing sync events with error code to ensure banner retains last-known-good data + guidance.</idea><idea ac="AC5">Responsive test verifying focus order and keyboard navigation remain consistent on tablet breakpoint.</idea></ideas>
+  </tests>
+</story-context>

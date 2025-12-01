@@ -1,0 +1,93 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>C</epicId>
+    <storyId>3.9</storyId>
+    <title>Icon-first action controls & animation system</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-14</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/3-9-icon-first-action-controls-animation-system.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As an NYU admissions manager</asA>
+    <iWant>I want icon-first action controls whose labels reveal on hover/focus/tap with deterministic animations</iWant>
+    <soThat>I can keep the dashboard minimal yet understandable while retaining governance telemetry</soThat>
+    <tasks><task-list>
+      <task id="T1" ac="AC1" artifact="nyu-device-roster/src/lib/animation.ts">Implement reusable animation tokens (hover, press, release) and helpers respecting prefers-reduced-motion to drive icon-first controls.</task>
+      <task id="T1a" parent="T1" ac="AC1" artifact="nyu-device-roster/app/globals.css">Add shared CSS/Tailwind classes for 120 ms hover slide/opacity, 90 ms press-in, and 150 ms release transitions.</task>
+      <task id="T2" ac="AC1" artifact="nyu-device-roster/src/app/(manager)/components/IconActionButton.tsx">Create icon-first button component handling hover/focus label reveal, tooltips, and keyboard/touch triggers.</task>
+      <task id="T2a" parent="T2" ac="AC1,AC3" artifact="nyu-device-roster/src/app/(manager)/dashboard/page.tsx">Replace existing action buttons (Refresh, Export, Governance) with IconActionButton instances wired to existing APIs.</task>
+      <task id="T3" ac="AC2" artifact="nyu-device-roster/src/lib/animation.ts">Add reduced-motion fallbacks (instant state changes) and tests verifying labels remain visible when animations are disabled.</task>
+      <task id="T4" ac="AC3" artifact="nyu-device-roster/src/lib/logging.ts">Log `ICON_ACTION_TRIGGERED` events with actor, action id, timing, and anonymization state; persist via `lib/audit/syncEvents.ts`.</task>
+      <task id="T4a" parent="T4" ac="AC3" artifact="nyu-device-roster/tests/integration/icon-actions.spec.ts">Integration test ensures action triggers emit telemetry/logs and respect focus return behavior.</task>
+      <task id="T5" ac="AC1-AC3" artifact="docs/governance-banner-runbook.md">Document icon-first controls, keyboard shortcuts, and troubleshooting steps for demo operators.</task>
+    </task-list></tasks>
+  </story>
+
+  <acceptanceCriteria><criteria>
+      <criterion id="AC1">Icon-first buttons reveal labels with 120/90/150 ms animation timings across desktop/tablet/mobile, using shared animation tokens.</criterion>
+      <criterion id="AC2">Reduced-motion preference disables non-essential transitions and presents instant state changes while retaining clarity.</criterion>
+      <criterion id="AC3">Action controls emit audit/telemetry events with actor, action, latency, and anonymization state.</criterion>
+    </criteria></acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact path="docs/epics.md" title="Epic C – Manager Dashboard" section="Story C9" >Epic C9 defines icon-first controls, timing expectations, and documentation deliverables (docs/epics.md:243-250).</artifact>
+      <artifact path="docs/PRD.md" title="PRD" section="Accessibility & Interaction" >PRD sections detail accessibility, reduced-motion, and performance requirements for interactive controls (docs/PRD.md:148-214).</artifact>
+      <artifact path="docs/architecture.md" title="Architecture" section="Manager Dashboard Architecture" >Architecture outlines feature-first component placement, logging, and observability patterns used by action controls (docs/architecture.md:45-205,145-199).</artifact>
+      <artifact path="docs/ux-design-directions.html" title="UX Design Directions" section="Icon Action Controls" >Design document specifies icon sets, label reveal choreography, and motion curves (docs/ux-design-directions.html:900-950).</artifact>
+      <artifact path="docs/stories/3-5-performance-instrumentation-and-lighthouse-checks.md" title="Story 3.5" section="Dev Notes" >Instrumentation hooks for measuring animation latency originate here (docs/stories/3-5-performance-instrumentation-and-lighthouse-checks.md:72-118).</artifact>
+      <artifact path="docs/stories/3-8-gitlab-style-column-filter-chips-halo-highlight.md" title="Story 3.8" section="Structure Alignment" >Latest story documenting chip/halo patterns to align with when integrating icon controls (docs/stories/3-8-gitlab-style-column-filter-chips-halo-highlight.md:12-20).</artifact>
+    </docs>
+    <code>
+      <artifact path="nyu-device-roster/src/app/(manager)/components/SyncStatusBanner.tsx" kind="component" symbol="SyncStatusBanner" lines="1-120" reason="Reference for accessible, status-driven components interacting with governance banners.</artifact>
+      <artifact path="nyu-device-roster/src/app/(manager)/dashboard/page.tsx" kind="page" symbol="DashboardPage" lines="1-200" reason="Hosts existing action buttons that will be replaced with icon-first controls.</artifact>
+      <artifact path="nyu-device-roster/src/lib/logging.ts" kind="utility" symbol="logger" lines="1-120" reason="Structured logging helper used to emit ICON_ACTION_TRIGGERED events.</artifact>
+      <artifact path="nyu-device-roster/src/lib/audit/syncEvents.ts" kind="service" symbol="recordAllowlistChangeEvent" lines="1-140" reason="Demonstrates how governance events persist to sync_events; reuse for action triggers.</artifact>
+      <artifact path="nyu-device-roster/src/app/(manager)/components/manager-session-context.tsx" kind="component" symbol="ManagerSessionProvider" lines="1-120" reason="Context provider exposing session/anonymization state referenced by action buttons.</artifact>
+      <artifact path="nyu-device-roster/scripts/verify-sync-indexes.ts" kind="script" symbol="verify-sync-indexes" lines="1-160" reason="Pattern for operational scripts and logging severity levels; reuse for instrumentation CLI if needed.</artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="next" version="16.0.1" reason="App Router runtime for dashboard components and API routes triggered by action controls." />
+        <package name="react" version="19.2.0" reason="Hook-based animation orchestration and event handling." />
+        <package name="next-auth" version="^4.24.13" reason="Ensures only authenticated managers can invoke actions." />
+        <package name="mongoose" version="^8.19.3" reason="Backs action APIs (export/handoff) that log to audit collections." />
+        <package name="pino" version="^10.1.0" reason="Structured logging used for ICON_ACTION_TRIGGERED events." />
+        <package name="zod" version="^4.1.12" reason="Validates payloads for actions triggered by icon buttons." />
+        <package name="vitest" version="^4.0.7" reason="Unit/component test framework for action button components and animation utilities." />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>All icon-first controls must reuse shared animation tokens; no inline/duplicated CSS transitions.</constraint>
+    <constraint>Respect prefers-reduced-motion by bypassing animations and ensuring labels remain visible.</constraint>
+    <constraint>Action triggers must log via logger/audit helpers with actor, requestId, anonymization state, and duration.</constraint>
+    <constraint>Integrations must keep existing API contracts; only UI/animation layer changes.</constraint>
+    <constraint>Focus order and accessibility semantics cannot regress; `aria-label` and keyboard shortcuts are mandatory.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="IconActionButton" kind="component" signature="<IconActionButton icon={<Icon />} label="Refresh" onPress={...} />" >
+      <path>nyu-device-roster/src/app/(manager)/components/IconActionButton.tsx</path>
+    </interface>
+    <interface name="useAnimationTokens" kind="hook" signature="useAnimationTokens(): { hoverMs: number; pressMs: number; releaseMs: number; reducedMotion: boolean }" >
+      <path>nyu-device-roster/src/lib/animation.ts</path>
+    </interface>
+    <interface name="logger.iconAction" kind="utility" signature="logger.info({ event: 'ICON_ACTION_TRIGGERED', actionId, durationMs, anonymized }, msg)" >
+      <path>nyu-device-roster/src/lib/logging.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Use Vitest + React Testing Library for component/animation logic, Playwright for keyboard/touch flows, and existing instrumentation scripts for latency assertions.</standards>
+    <locations>nyu-device-roster/tests/unit/app; nyu-device-roster/tests/unit/lib; nyu-device-roster/tests/integration</locations>
+    <ideas>
+      <idea ac="AC1">Component test verifying hover/focus reveals label with correct timing tokens and tooltips.</idea>
+      <idea ac="AC2">Unit test toggling prefers-reduced-motion to confirm animations disable and labels stay visible.</idea>
+      <idea ac="AC3">Integration test invoking actions ensures ICON_ACTION_TRIGGERED logs include actor, action id, and duration.</idea>
+    </ideas>
+  </tests>
+</story-context>

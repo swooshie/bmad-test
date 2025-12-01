@@ -24,6 +24,11 @@ export type TypedCellValue = string | number | Date | null;
 
 export type TypedRow = Record<string, TypedCellValue>;
 
+export type SheetRowMetadata = {
+  rowNumber: number;
+  raw: RawCell[];
+};
+
 export type SheetErrorCode =
   | "SHEET_NOT_FOUND"
   | "RATE_LIMIT"
@@ -40,6 +45,8 @@ export type FetchMetrics = {
   sheetId: string;
   tabName: string;
   requestId?: string;
+  headerCount: number;
+  retryCount: number;
 };
 
 export type RetryContext = {
@@ -55,6 +62,14 @@ export type RetryPolicy = {
   maxDelayMs?: number;
   onRetry?: (context: RetryContext) => void | Promise<void>;
 };
+
+export const AUDIT_RETRY_POLICY: RetryPolicy = {
+  maxAttempts: 5,
+  baseDelayMs: 750,
+  maxDelayMs: 8000,
+};
+
+export const DEFAULT_SHEETS_TAB = DEFAULT_TAB_NAME;
 
 export type CredentialSelector =
   | {
@@ -80,12 +95,22 @@ export type FetchSheetDataOptions = {
     index: number;
     raw: RawCell[][];
     records: TypedRow[];
+    metadata: SheetRowMetadata[];
+    startRowNumber: number;
   }) => void | Promise<void>;
+};
+
+export type SheetHeader = {
+  name: string;
+  normalizedName: string;
+  position: number;
 };
 
 export type FetchSheetDataResult = {
   headers: string[];
+  orderedHeaders: SheetHeader[];
   rows: TypedRow[];
+  rowMetadata: SheetRowMetadata[];
   metrics: FetchMetrics;
 };
 
@@ -123,6 +148,46 @@ const normalizeSheetId = (sheetId: string | undefined): string => {
     );
   }
   return trimmed;
+};
+
+const normalizeHeaderLabel = (value: RawCell, position: number): string => {
+  const asString = typeof value === "string" ? value : String(value ?? "");
+  const trimmed = asString.trim();
+  return trimmed.length > 0 ? trimmed : `column_${position}`;
+};
+
+const normalizeHeaderKey = (label: string, fallbackPosition: number): string => {
+  const slug = label
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return slug.length > 0 ? slug : `column_${fallbackPosition}`;
+};
+
+const buildOrderedHeaders = (headers: string[]): SheetHeader[] =>
+  headers.map((header, index) => ({
+    name: header,
+    normalizedName: normalizeHeaderKey(header, index + 1),
+    position: index,
+  }));
+
+const createTrackedRetryPolicy = (
+  policy: RetryPolicy | undefined,
+  tracker: () => void
+): RetryPolicy | undefined => {
+  if (!policy) {
+    return undefined;
+  }
+  const wrapped: RetryPolicy = {
+    ...policy,
+  };
+  const originalOnRetry = wrapped.onRetry;
+  wrapped.onRetry = async (context) => {
+    tracker();
+    await originalOnRetry?.(context);
+  };
+  return wrapped;
 };
 
 const resolveCredentials = async (
@@ -264,27 +329,38 @@ const inferValue = (value: RawCell): TypedCellValue => {
 const convertRowsToRecords = (
   headers: string[],
   rows: RawCell[][],
-  includeEmptyRows: boolean
-): TypedRow[] => {
+  includeEmptyRows: boolean,
+  startRowNumber: number
+): { records: TypedRow[]; metadata: SheetRowMetadata[] } => {
   const normalizedHeaders = headers.map((header, index) =>
-    header?.trim() ? header.trim() : `column_${index + 1}`
+    normalizeHeaderLabel(header, index + 1)
   );
 
-  return rows
-    .map((row) => {
-      const record: TypedRow = {};
-      let meaningfulValueCount = 0;
-      normalizedHeaders.forEach((header, columnIndex) => {
-        const typedValue = inferValue(row[columnIndex]);
-        record[header] = typedValue;
-        if (typedValue !== null && typedValue !== "") {
-          meaningfulValueCount += 1;
-        }
+  const records: TypedRow[] = [];
+  const metadata: SheetRowMetadata[] = [];
+
+  rows.forEach((row, rowIndex) => {
+    const record: TypedRow = {};
+    let meaningfulValueCount = 0;
+    normalizedHeaders.forEach((header, columnIndex) => {
+      const typedValue = inferValue(row[columnIndex]);
+      record[header] = typedValue;
+      if (typedValue !== null && typedValue !== "") {
+        meaningfulValueCount += 1;
+      }
+    });
+
+    const shouldInclude = includeEmptyRows || meaningfulValueCount > 0;
+    if (shouldInclude) {
+      records.push(record);
+      metadata.push({
+        rowNumber: startRowNumber + rowIndex,
+        raw: row,
       });
-      return { record, meaningfulValueCount };
-    })
-    .filter(({ meaningfulValueCount }) => includeEmptyRows || meaningfulValueCount > 0)
-    .map(({ record }) => record);
+    }
+  });
+
+  return { records, metadata };
 };
 
 const fetchRangeValues = async (
@@ -322,6 +398,10 @@ export const fetchSheetData = async (
   const includeEmptyRows = Boolean(options.includeEmptyRows);
   const pageSize = Math.max(1, options.pageSize ?? DEFAULT_PAGE_SIZE);
   const maxPages = Math.max(1, options.maxPages ?? DEFAULT_MAX_PAGES);
+  let retryCount = 0;
+  const retryPolicy = createTrackedRetryPolicy(options.retry, () => {
+    retryCount += 1;
+  });
 
   const requestMetadata = {
     sheetId,
@@ -354,13 +434,15 @@ export const fetchSheetData = async (
       jwtClient,
       sheetId,
       headersRange,
-      options.retry
+      retryPolicy
     );
-    const headers = (headerValues[0] ?? []).map((value) =>
-      typeof value === "string" ? value : String(value ?? "")
+    const headers = (headerValues[0] ?? []).map((value, index) =>
+      normalizeHeaderLabel(value, index + 1)
     );
+    const orderedHeaders = buildOrderedHeaders(headers);
 
     const rows: TypedRow[] = [];
+    const metadataRows: SheetRowMetadata[] = [];
     let pageCount = 0;
     let nextRowStart = 2;
 
@@ -370,17 +452,25 @@ export const fetchSheetData = async (
         nextRowStart,
         nextRowStart + pageSize - 1
       );
-      const rawRows = await fetchRangeValues(jwtClient, sheetId, range, options.retry);
+      const rawRows = await fetchRangeValues(jwtClient, sheetId, range, retryPolicy);
       if (!rawRows.length) {
         break;
       }
 
-      const typedRows = convertRowsToRecords(headers, rawRows, includeEmptyRows);
-      rows.push(...typedRows);
+      const conversion = convertRowsToRecords(
+        headers,
+        rawRows,
+        includeEmptyRows,
+        nextRowStart
+      );
+      rows.push(...conversion.records);
+      metadataRows.push(...conversion.metadata);
       await options.onPage?.({
         index: pageCount,
         raw: rawRows,
-        records: typedRows,
+        records: conversion.records,
+        metadata: conversion.metadata,
+        startRowNumber: nextRowStart,
       });
 
       pageCount += 1;
@@ -400,6 +490,8 @@ export const fetchSheetData = async (
       sheetId,
       tabName,
       requestId: options.requestId,
+      headerCount: orderedHeaders.length,
+      retryCount,
     };
 
     logger.info(
@@ -412,7 +504,9 @@ export const fetchSheetData = async (
 
     return {
       headers,
+      orderedHeaders,
       rows,
+      rowMetadata: metadataRows,
       metrics,
     };
   } catch (error) {

@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 
-import type { TypedRow } from "@/lib/google-sheets";
+import type { SheetHeader, TypedRow } from "@/lib/google-sheets";
 import {
   deviceDocumentSchema,
   type DeviceDocumentSchema,
 } from "@/schemas/device";
+import { normalizeHeaderKey } from "@/workers/sync/header-map";
 
 type SimpleDeviceField = Exclude<
   keyof Omit<DeviceDocumentSchema, "lastSyncedAt">,
@@ -12,7 +13,8 @@ type SimpleDeviceField = Exclude<
 >;
 
 const HEADER_ALIASES: Record<SimpleDeviceField, string[]> = {
-  deviceId: ["deviceid", "device_id", "device id"],
+  serial: ["serial", "serial number", "serial_no", "serialno"],
+  legacyDeviceId: ["deviceid", "device_id", "device id"],
   sheetId: ["sheetid", "sheet_id", "sheet id"],
   assignedTo: ["assignedto", "assigned_to", "assigned to"],
   status: ["status"],
@@ -33,6 +35,26 @@ const OFFBOARDING_METADATA_ALIASES = {
   ],
 } as const;
 
+const canonicalizeHeader = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+const RESERVED_DYNAMIC_KEYS = new Set<string>([
+  ...Object.values(HEADER_ALIASES).flat(),
+  ...Object.values(OFFBOARDING_METADATA_ALIASES).flat(),
+  "deviceid",
+  "legacydeviceid",
+  "serial",
+  "sheetid",
+  "assignedto",
+  "status",
+  "condition",
+  "offboardingstatus",
+  "lastseen",
+  "lastsyncedat",
+  "lasttransfernotes",
+].map(canonicalizeHeader));
+
+const MAX_DYNAMIC_COLUMNS = 100;
+
 const toLowerKeyMap = (row: TypedRow) => {
   const entries = Object.entries(row).map(([key, value]) => [key.toLowerCase(), value]);
   return new Map<string, TypedRow[string]>(entries);
@@ -48,7 +70,8 @@ const titleCase = (value: string) =>
 
 const createContentHash = (payload: DeviceDocumentSchema): string => {
   const stablePayload = {
-    deviceId: payload.deviceId.toLowerCase(),
+    serial: payload.serial.toLowerCase(),
+    legacyDeviceId: payload.legacyDeviceId?.toLowerCase() ?? null,
     assignedTo: payload.assignedTo.toLowerCase(),
     status: payload.status.toLowerCase(),
     condition: payload.condition.toLowerCase(),
@@ -65,6 +88,15 @@ const createContentHash = (payload: DeviceDocumentSchema): string => {
             : null,
         }
       : null,
+    dynamicAttributes: payload.dynamicAttributes
+      ? Object.keys(payload.dynamicAttributes)
+          .sort()
+          .reduce<Record<string, string | number | boolean | null>>((acc, key) => {
+            acc[key] = payload.dynamicAttributes?.[key] ?? null;
+            return acc;
+          }, {})
+      : null,
+    columnDefinitionsVersion: payload.columnDefinitionsVersion ?? null,
   };
   return createHash("sha256").update(JSON.stringify(stablePayload)).digest("hex");
 };
@@ -116,6 +148,25 @@ const coerceDate = (value: TypedRow[keyof TypedRow] | undefined | null): Date | 
   return Number.isNaN(candidate.getTime()) ? undefined : candidate;
 };
 
+const normalizeDynamicValue = (
+  value: TypedRow[keyof TypedRow]
+): string | number | boolean | null | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === null) {
+    return null;
+  }
+  if (typeof value === "number") {
+    return value;
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  }
+  const trimmed = String(value).trim();
+  return trimmed.length ? trimmed : null;
+};
+
 export type NormalizedDevice = DeviceDocumentSchema & {
   contentHash: string;
 };
@@ -130,6 +181,9 @@ export type NormalizationResult = {
 type NormalizeOptions = {
   sheetId: string;
   now?: Date;
+  headers?: SheetHeader[];
+  maxDynamicColumns?: number;
+  columnDefinitionsVersion?: string;
 };
 
 export const normalizeSheetRows = (
@@ -139,18 +193,31 @@ export const normalizeSheetRows = (
   const anomalies: string[] = [];
   const devices: NormalizedDevice[] = [];
   const now = options.now ?? new Date();
+  const headerLookup = new Map<string, SheetHeader>();
+  options.headers?.forEach((header) => {
+    headerLookup.set(header.name.toLowerCase(), header);
+  });
+  const dynamicLimit = options.maxDynamicColumns ?? MAX_DYNAMIC_COLUMNS;
 
   rows.forEach((row, index) => {
     const rowIdentifier = `row ${index + 1}`;
     const valueMap = toLowerKeyMap(row);
 
-    const deviceId =
-      coerceString(extractField(valueMap, HEADER_ALIASES.deviceId)) ??
+    const legacyDeviceId =
+      coerceString(extractField(valueMap, HEADER_ALIASES.legacyDeviceId)) ??
       coerceString(row.deviceId);
-    if (!deviceId) {
-      anomalies.push(`${rowIdentifier}: missing deviceId – row skipped`);
+
+    const explicitSerial =
+      coerceString(extractField(valueMap, HEADER_ALIASES.serial)) ??
+      coerceString(row.serial) ??
+      legacyDeviceId;
+
+    if (!explicitSerial) {
+      anomalies.push(`${rowIdentifier}: missing serial – row skipped`);
       return;
     }
+
+    const serial = explicitSerial.toLowerCase();
 
     const assignedTo = normalizeAssignedTo(
       coerceString(extractField(valueMap, HEADER_ALIASES.assignedTo)) ??
@@ -193,8 +260,42 @@ export const normalizeSheetRows = (
           }
         : undefined;
 
+    const dynamicAttributeEntries: Array<[
+      string,
+      string | number | boolean | null,
+    ]> = [];
+    Object.entries(row).forEach(([columnName, value], columnIndex) => {
+      const canonical = canonicalizeHeader(columnName);
+      if (!canonical || RESERVED_DYNAMIC_KEYS.has(canonical)) {
+        return;
+      }
+      const lookup = headerLookup.get(columnName.toLowerCase());
+      const normalizedKey = lookup?.normalizedName ?? normalizeHeaderKey(columnName, columnIndex + 1);
+      const dynamicValue = normalizeDynamicValue(value);
+      if (dynamicValue === undefined) {
+        return;
+      }
+      dynamicAttributeEntries.push([normalizedKey, dynamicValue]);
+    });
+
+    if (dynamicAttributeEntries.length > dynamicLimit) {
+      anomalies.push(
+        `${rowIdentifier}: dynamic attribute count ${dynamicAttributeEntries.length} exceeds limit ${dynamicLimit}`
+      );
+      dynamicAttributeEntries.length = dynamicLimit;
+    }
+
+    const dynamicAttributes = dynamicAttributeEntries.reduce<Record<string, string | number | boolean | null>>(
+      (acc, [key, value]) => {
+        acc[key] = value;
+        return acc;
+      },
+      {}
+    );
+
     const payload: DeviceDocumentSchema = {
-      deviceId,
+      serial,
+      legacyDeviceId: legacyDeviceId ?? undefined,
       sheetId: options.sheetId,
       assignedTo,
       status,
@@ -204,6 +305,8 @@ export const normalizeSheetRows = (
       offboardingMetadata,
       lastTransferNotes,
       lastSyncedAt: now,
+      dynamicAttributes: Object.keys(dynamicAttributes).length ? dynamicAttributes : undefined,
+      columnDefinitionsVersion: options.columnDefinitionsVersion,
     };
 
     const parsed = deviceDocumentSchema.safeParse(payload);

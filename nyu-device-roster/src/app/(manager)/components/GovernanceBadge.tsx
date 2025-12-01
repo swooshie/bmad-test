@@ -18,11 +18,11 @@ const SEVERITY_STYLES = {
 } as const;
 
 type GovernanceBadgeProps = {
-  deviceId: string;
+  serial: string;
   cue: DeviceGridDevice["governanceCue"];
 };
 
-export const GovernanceBadge = ({ deviceId, cue }: GovernanceBadgeProps) => {
+export const GovernanceBadge = ({ serial, cue }: GovernanceBadgeProps) => {
   if (!hasGovernanceRisk(cue) || cue.severity === "none") {
     return null;
   }
@@ -37,7 +37,7 @@ export const GovernanceBadge = ({ deviceId, cue }: GovernanceBadgeProps) => {
     </span>
   );
 
-  return <GovernanceBadgeTooltip deviceId={deviceId} cueSummary={cue.summary} badge={badgeContent} />;
+  return <GovernanceBadgeTooltip serial={serial} cueSummary={cue.summary} badge={badgeContent} />;
 };
 
 export default GovernanceBadge;

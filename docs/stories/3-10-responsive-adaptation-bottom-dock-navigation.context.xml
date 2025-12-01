@@ -1,0 +1,70 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>10</storyId>
+    <title>responsive-adaptation-bottom-dock-navigation</title>
+    <status>drafted</status>
+    <generatedAt>{{date}}</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/3-10-responsive-adaptation-bottom-dock-navigation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As an NYU admissions manager using tablet or mobile</asA>
+    <iWant>I want the dashboard to adapt with a slide-over audit spine and bottom dock navigation</iWant>
+    <soThat>so that I can complete roster tasks comfortably across breakpoints without losing governance cues</soThat>
+    <tasks>
+      - Responsive layout scaffolding: swap audit spine to slide-over on tablet; hide until invoked on mobile while sharing governance state.
+      - Bottom dock navigation: expose Search, Filters, Audit, Export with icon-first labels and 48px targets; reuse existing handlers.
+      - Accessibility and performance: maintain focus order/ARIA roles, honor reduced-motion, and instrument auth render (<2s) plus dock interactions (<200 ms).
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    1) Tablet collapses audit spine into slide-over via icon trigger; mobile pivots to search-first while preserving audit access.
+    2) Bottom dock shows Search, Filters, Audit, Export with 48px tap targets and icon-first labels that remain readable under reduced motion.
+    3) Focus order, ARIA announcements, and reduced-motion preferences stay consistent across breakpoints; authenticated render <2s and interactions <200 ms.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      - path: docs/epics.md | section: Story C10 acceptance criteria | snippet: Defines slide-over audit spine for tablet, bottom dock shortcuts, and accessibility expectations for responsive dashboard.
+      - path: docs/PRD.md | section: Performance & Accessibility | snippet: Sets authenticated render &lt;2s, interactions &lt;200 ms, WCAG AA, keyboard support, and reduced-motion guidance.
+      - path: docs/ux-design-specification.md | section: Responsive Strategy | snippet: Desktop keeps grid+audit spine; tablet slide-over audit; mobile search-first with bottom dock actions and 48px targets.
+      - path: docs/ux-design-specification.md | section: Icon-first Buttons & Interaction Patterns | snippet: Icon-first label reveal patterns and reduced-motion expectations reused by dock buttons.
+      - path: docs/architecture.md | section: Project Structure & Manager Dashboard | snippet: Feature-first folders under app/(manager) with governance spine, React Query data layer, and audit logging hooks to preserve telemetry.
+      - path: docs/stories/3-9-icon-first-action-controls-animation-system.md | section: Dev Notes | snippet: Provides animation token reuse and reduced-motion behavior for icon-first controls that dock actions should inherit.
+    </docs>
+    <code>
+      - path: nyu-device-roster/src/app/(manager)/layout.tsx | kind: layout | symbol: ManagerLayout | lines: 1-70 | reason: Shell that should host responsive spine/dock controls and maintain focus/ARIA patterns.
+      - path: nyu-device-roster/src/app/(manager)/dashboard/page.tsx | kind: page | symbol: DashboardPage | lines: 1-70 | reason: Current dashboard surface where responsive slide-over trigger and dock would live.
+      - path: nyu-device-roster/src/app/(manager)/components/SyncStatusBanner.tsx | kind: component | symbol: SyncStatusBanner | lines: 1-200 | reason: Governance banner referenced in ACs; must remain accessible within responsive layouts.
+      - path: nyu-device-roster/src/app/(manager)/components/manager-session-context.tsx | kind: context | symbol: ManagerSessionProvider | lines: 1-120 | reason: Provides session data used across responsive shells; must remain wired in dock/spine surfaces.
+    </code>
+    <dependencies>
+      - ecosystem: node
+        packages: next@16.0.1, next-auth@4.24.13, react@19.2.0, @tanstack/react-query (implicit in architecture), mongoose@^8.19.3, pino@^10.1.0
+      - ecosystem: tooling
+        packages: eslint@^9, tailwindcss@^4, vitest@^4.0.7, typescript@^5
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - Preserve WCAG AA focus order and aria-live messaging; dock and slide-over must restore focus to trigger on close.
+    - Honor reduced-motion preference by disabling slide/opacity animations and keeping labels visible on dock buttons.
+    - Keep authenticated render under 2 seconds and dock interactions under 200 ms; log via existing telemetry hooks.
+    - Reuse existing governance/audit state and React Query caches; do not fork API contracts for audit or sync actions.
+  </constraints>
+  <interfaces>
+    - name: Manager dashboard shell | kind: Next.js page/layout | signature: app/(manager)/layout.tsx exporting ManagerLayout | path: nyu-device-roster/src/app/(manager)/layout.tsx
+  </interfaces>
+  <tests>
+    <standards>Use existing React/Next.js testing stack with Vitest/RTL for component behavior and Playwright for responsive interactions; respect axe/Lighthouse accessibility expectations noted in UX/PRD.</standards>
+    <locations>nyu-device-roster/tests/unit; nyu-device-roster/tests/integration; component-adjacent tests under nyu-device-roster/src/app/(manager)</locations>
+    <ideas>
+      - AC1: Playwright scenario toggling audit slide-over at tablet breakpoint and verifying focus return + audit content visibility.
+      - AC2: RTL/Vitest verifies dock buttons render with 48px targets and icon-first labels persist when reduced-motion is enabled.
+      - AC3: Performance hooks/telemetry test asserting render and interaction timings are recorded and below thresholds; axe check for aria roles on dock and slide-over.
+    </ideas>
+  </tests>
+</story-context>

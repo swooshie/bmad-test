@@ -1,0 +1,18 @@
+{
+  "repository_type": "monolith",
+  "parts": [
+    {
+      "id": "nyu-device-roster",
+      "name": "NYU Device Roster",
+      "root": "nyu-device-roster",
+      "project_type": "web",
+      "tech_stack": ["Next.js 16", "React 19", "TanStack Query", "NextAuth", "MongoDB", "Google Sheets"],
+      "entry_points": ["src/app/page.tsx", "src/app/(manager)/layout.tsx"],
+      "api_folders": ["src/app/api"],
+      "data_models": ["Device", "Config", "AuditLog", "SyncEvent", "SyncLock"],
+      "workers": ["src/workers/sync"],
+      "notes": "Brownfield ingestion app syncing Google Sheets roster data into MongoDB with governance overlays."
+    }
+  ],
+  "integration_points": []
+}

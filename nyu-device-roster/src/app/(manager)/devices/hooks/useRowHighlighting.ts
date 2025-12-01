@@ -10,7 +10,7 @@ const shouldAnimate = () =>
   !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export const deriveHighlightIds = (rows: DeviceGridDevice[]): Set<string> =>
-  new Set(rows.map((row) => row.deviceId));
+  new Set(rows.map((row) => row.serial));
 
 export const useRowHighlighting = (
   rows: DeviceGridDevice[],
@@ -23,10 +23,18 @@ export const useRowHighlighting = (
     [filters]
   );
 
+  const rowSerials = useMemo(() => rows.map((row) => row.serial), [rows]);
+  const rowFingerprint = useMemo(() => rowSerials.join("|"), [rowSerials]);
+
   useEffect(() => {
-    const rowIds = deriveHighlightIds(rows);
+    const rowIds = new Set(rowSerials);
     const shouldPulse = shouldAnimate();
-    setHighlighted(rowIds);
+    setHighlighted((prev) => {
+      if (prev.size === rowIds.size && rowSerials.every((id) => prev.has(id))) {
+        return prev;
+      }
+      return rowIds;
+    });
 
     if (!shouldPulse) {
       return;
@@ -39,7 +47,7 @@ export const useRowHighlighting = (
     return () => {
       window.clearTimeout(timer);
     };
-  }, [activeFilterFingerprint, rows]);
+  }, [activeFilterFingerprint, rowFingerprint, rowSerials]);
 
   return highlighted;
 };

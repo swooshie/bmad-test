@@ -20,7 +20,8 @@ export type DeviceGridQueryState = {
 };
 
 export type DeviceSortableField =
-  | "deviceId"
+  | "serial"
+  | "legacyDeviceId"
   | "assignedTo"
   | "status"
   | "condition"
@@ -29,7 +30,8 @@ export type DeviceSortableField =
   | "lastSyncedAt";
 
 const SORTABLE_FIELDS = new Set<DeviceSortableField>([
-  "deviceId",
+  "serial",
+  "legacyDeviceId",
   "assignedTo",
   "status",
   "condition",

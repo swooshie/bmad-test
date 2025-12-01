@@ -1,11 +1,101 @@
 import pino from "pino";
 
+const isBrowser = typeof window !== "undefined";
 const isDevelopment = process.env.NODE_ENV !== "production";
 
-export const logger = pino({
-  level: process.env.LOG_LEVEL ?? (isDevelopment ? "debug" : "info"),
-  base: undefined,
-});
+const createLogger = () => {
+  if (isBrowser) {
+    return pino({
+      level: process.env.LOG_LEVEL ?? (isDevelopment ? "debug" : "info"),
+      base: undefined,
+      browser: { asObject: true },
+    });
+  }
+
+  // Server-side: lazily load fs/path to avoid bundling in client chunks
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const fs = require("node:fs") as typeof import("node:fs");
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const path = require("node:path") as typeof import("node:path");
+
+  const logFile = process.env.LOG_FILE ?? "logs/app.log";
+  const buildStreams = () => {
+    const streams: pino.MultistreamOptions["streams"] = [{ stream: process.stdout }];
+    if (logFile) {
+      fs.mkdirSync(path.dirname(logFile), { recursive: true });
+      streams.push({ stream: pino.destination(logFile) });
+    }
+    return streams;
+  };
+
+  return pino(
+    {
+      level: process.env.LOG_LEVEL ?? (isDevelopment ? "debug" : "info"),
+      base: undefined,
+    },
+    pino.multistream(buildStreams())
+  );
+};
+
+export const logger = createLogger();
+
+export type SyncRunTriggerType = "system" | "manual" | "scheduled";
+
+export type SyncRunStatusLog = "success" | "failed" | "skipped";
+
+export type SyncRunStartLog = {
+  runId: string;
+  sheetId: string;
+  trigger: SyncRunTriggerType;
+  requestedBy?: string | null;
+  startedAt: string;
+  queueLatencyMs?: number | null;
+};
+
+export type SyncRunCompletedLog = SyncRunStartLog & {
+  completedAt: string;
+  durationMs: number;
+  rowsProcessed: number;
+  rowsSkipped: number;
+  conflicts: number;
+  status: SyncRunStatusLog;
+};
+
+export const logSyncRunStarted = (payload: SyncRunStartLog) => {
+  logger.info(
+    {
+      event: "SYNC_RUN_STARTED",
+      runId: payload.runId,
+      sheetId: payload.sheetId,
+      trigger: payload.trigger,
+      requestedBy: payload.requestedBy ?? null,
+      startedAt: payload.startedAt,
+      queueLatencyMs: payload.queueLatencyMs ?? null,
+    },
+    "Sync run started"
+  );
+};
+
+export const logSyncRunCompleted = (payload: SyncRunCompletedLog) => {
+  logger.info(
+    {
+      event: "SYNC_RUN_COMPLETED",
+      runId: payload.runId,
+      sheetId: payload.sheetId,
+      trigger: payload.trigger,
+      requestedBy: payload.requestedBy ?? null,
+      startedAt: payload.startedAt,
+      completedAt: payload.completedAt,
+      durationMs: payload.durationMs,
+      rowsProcessed: payload.rowsProcessed,
+      rowsSkipped: payload.rowsSkipped,
+      conflicts: payload.conflicts,
+      status: payload.status,
+      queueLatencyMs: payload.queueLatencyMs ?? null,
+    },
+    "Sync run completed"
+  );
+};
 
 export type AuthFailureLog = {
   event: "AUTH_INVALID_SESSION";
@@ -144,13 +234,14 @@ export type FilterChipLog = {
   requestId?: string | null;
   anonymized?: boolean;
   total?: number | null;
+  columnsVersion?: string;
 };
 
 export type DeviceDrawerLog =
   | {
       event: "DEVICE_DRAWER_ACTION";
       action: "EXPORT_AUDIT_SNAPSHOT" | "HANDOFF_INITIATED";
-      deviceId: string;
+      serial: string;
       userEmail?: string | null;
       requestId?: string | null;
       outcome: "success" | "failure";
@@ -158,7 +249,7 @@ export type DeviceDrawerLog =
     }
   | {
       event: "ANONYMIZATION_CHIP_VIEWED";
-      deviceId: string;
+      serial: string;
       userEmail?: string | null;
       anonymized: boolean;
       requestId?: string | null;
@@ -181,6 +272,7 @@ export const logFilterChipUpdate = (payload: FilterChipLog) => {
       ...payload,
       anonymized: payload.anonymized ?? false,
       total: payload.total ?? null,
+      columnsVersion: payload.columnsVersion ?? null,
     },
     "Filter chip state updated"
   );

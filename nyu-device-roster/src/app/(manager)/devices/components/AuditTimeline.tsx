@@ -4,18 +4,21 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { API_ROUTES } from "@/lib/routes";
-import type { SyncEventType } from "@/models/SyncEvent";
+import type { AuditEventType, AuditStatus } from "@/models/AuditLog";
 
 type AuditEvent = {
   id: string;
-  eventType: SyncEventType;
-  summary: string;
-  createdAt: string;
-  metadata?: Record<string, unknown>;
+  eventType: AuditEventType;
+  action: string;
+  status: AuditStatus;
+  actor: string | null;
+  errorCode?: string | null;
+  timestamp: string;
+  context?: Record<string, unknown>;
 };
 
-const fetchAuditEvents = async (deviceId: string): Promise<AuditEvent[]> => {
-  const response = await fetch(API_ROUTES.auditEvents(deviceId), {
+const fetchAuditEvents = async (serial: string): Promise<AuditEvent[]> => {
+  const response = await fetch(API_ROUTES.auditEvents({ serial }), {
     headers: { Accept: "application/json" },
   });
   const payload = (await response.json()) as {
@@ -28,17 +31,15 @@ const fetchAuditEvents = async (deviceId: string): Promise<AuditEvent[]> => {
   return payload.data.events;
 };
 
-const badgeClass = (eventType: SyncEventType) => {
+const badgeClass = (eventType: AuditEventType) => {
   switch (eventType) {
-    case "DEVICE_HANDOFF_INITIATED":
+    case "governance":
       return "bg-amber-500/20 text-amber-100 border border-amber-300/30";
-    case "DEVICE_AUDIT_EXPORT":
-    case "GOVERNANCE_EXPORT":
+    case "allowlist-change":
       return "bg-sky-500/20 text-sky-100 border border-sky-300/30";
-    case "ANONYMIZATION_TOGGLED":
-    case "DEVICE_DRAWER_ACTION":
+    case "anonymization":
       return "bg-indigo-500/20 text-indigo-100 border border-indigo-300/30";
-    case "SYNC_RUN":
+    case "sync":
       return "bg-emerald-500/20 text-emerald-100 border border-emerald-300/30";
     default:
       return "bg-slate-500/20 text-slate-100 border border-slate-300/30";
@@ -50,20 +51,20 @@ const formatDateTime = (value: string) =>
     new Date(value)
   );
 
-export function AuditTimeline({ deviceId }: { deviceId: string }) {
+export function AuditTimeline({ serial }: { serial: string }) {
   const {
     data: events,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["audit-events", deviceId],
-    queryFn: () => fetchAuditEvents(deviceId),
-    enabled: Boolean(deviceId),
+    queryKey: ["audit-events", serial],
+    queryFn: () => fetchAuditEvents(serial),
+    enabled: Boolean(serial),
     staleTime: 15_000,
   });
 
   const sorted = useMemo(
-    () => (events ?? []).slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    () => (events ?? []).slice().sort((a, b) => b.timestamp.localeCompare(a.timestamp)),
     [events]
   );
 
@@ -97,11 +98,15 @@ export function AuditTimeline({ deviceId }: { deviceId: string }) {
               <span className={`rounded-md px-2 py-1 text-xs font-semibold ${badgeClass(event.eventType)}`}>
                 {event.eventType}
               </span>
-              <span className="text-xs text-white/60">{formatDateTime(event.createdAt)}</span>
+              <span className="text-xs text-white/60">{formatDateTime(event.timestamp)}</span>
+              <span className="rounded-md border border-white/20 px-2 py-1 text-[10px] uppercase tracking-wide text-white/80">
+                {event.status}
+              </span>
             </div>
-            <p className="text-sm font-semibold text-white">{event.summary}</p>
-            {event.metadata?.reason && (
-              <p className="text-xs text-white/70">Reason: {String(event.metadata.reason)}</p>
+            <p className="text-sm font-semibold text-white">{event.action}</p>
+            {event.actor && <p className="text-xs text-white/70">Actor: {event.actor}</p>}
+            {event.errorCode && (
+              <p className="text-xs text-rose-200">Error: {String(event.errorCode)}</p>
             )}
           </div>
         </li>

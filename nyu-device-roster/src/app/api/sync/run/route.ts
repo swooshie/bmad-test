@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 import connectToDatabase from "@/lib/db";
+import { recordAuditLogFromSyncEvent } from "@/lib/audit/auditLogs";
 import { ensureRuntimeConfig } from "@/lib/config";
 import { SheetFetchError } from "@/lib/google-sheets";
 import { AppError, mapToAppError, serializeAppError } from "@/lib/errors/app-error";
@@ -42,6 +43,13 @@ const recordScheduledSkip = async (reason: string, metadata?: Record<string, unk
       ...metadata,
     },
   });
+
+  await recordAuditLogFromSyncEvent({
+    eventType: "SYNC_RUN",
+    action: "SYNC_SKIPPED",
+    status: "skipped",
+    context: { reason, ...metadata },
+  });
 };
 
 const recordFailureEvent = async (payload: {
@@ -66,12 +74,27 @@ const recordFailureEvent = async (payload: {
       referenceId: payload.error.referenceId,
     },
   });
+
+  await recordAuditLogFromSyncEvent({
+    eventType: "SYNC_RUN",
+    action: "SYNC_RUN_FAILED",
+    status: "error",
+    errorCode: payload.error.code,
+    context: {
+      runId: payload.runId,
+      sheetId: payload.sheetId,
+      requestId: payload.requestId,
+      recommendation: payload.error.recommendation,
+      referenceId: payload.error.referenceId,
+    },
+  });
 };
 
 export const POST = async (request: NextRequest) => {
   const providedRequestId = request.headers.get("x-request-id") ?? undefined;
   const requestId = providedRequestId ?? randomUUID();
   const requestStartedAt = Date.now();
+  const requestedModeHeader = request.headers.get("x-sync-mode") as "dry-run" | "live" | null;
 
   let runtimeConfig;
   try {
@@ -133,6 +156,7 @@ export const POST = async (request: NextRequest) => {
     intervalMinutes: 2,
     timezone: "Etc/UTC",
   };
+  const effectiveMode = requestedModeHeader ?? (runtimeConfig.config.sync?.mode as "dry-run" | "live" | undefined) ?? "live";
 
   if (!syncSettings.enabled) {
     logger.warn(
@@ -223,11 +247,14 @@ export const POST = async (request: NextRequest) => {
     requestedBy: SCHEDULER_ACTOR,
     anonymized: false,
     queueLatencyMs: Date.now() - requestStartedAt,
+    mode: effectiveMode,
   };
 
   markSyncRunning({
     runId,
     requestedBy: SCHEDULER_ACTOR,
+    trigger: triggerContext.type,
+    mode: effectiveMode,
   });
 
   const executeScheduledSync = async () => {
@@ -241,12 +268,33 @@ export const POST = async (request: NextRequest) => {
 
       markSyncSuccess({
         runId,
+        requestedBy: SCHEDULER_ACTOR,
+        trigger: triggerContext.type,
+        mode: effectiveMode,
         metrics: {
           added: result.upsert.added,
           updated: result.upsert.updated,
           unchanged: result.upsert.unchanged,
+          rowsProcessed: result.rowCount,
+          rowsSkipped: result.skipped,
+          conflicts: result.upsert.serialConflicts,
           durationMs: result.durationMs,
+          serialConflicts: result.upsert.serialConflicts,
+          legacyIdsUpdated: result.upsert.legacyIdsUpdated,
+          columnsAdded: result.columnRegistry?.added ?? 0,
+          columnsRemoved: result.columnRegistry?.removed ?? 0,
+          columnTotal: result.columnRegistry?.total ?? 0,
+          columnsVersion: result.columnRegistryVersion,
         },
+        schemaChange: result.schemaChange
+          ? {
+              added: result.schemaChange.added,
+              removed: result.schemaChange.removed,
+              renamed: result.schemaChange.renamed.map((pair) => `${pair.from} -> ${pair.to}`),
+              currentVersion: result.schemaChange.currentVersion,
+              previousVersion: result.schemaChange.previousVersion,
+            }
+          : undefined,
       });
     } catch (error) {
       const mapped =
@@ -267,6 +315,9 @@ export const POST = async (request: NextRequest) => {
       );
       markSyncError({
         runId,
+        requestedBy: SCHEDULER_ACTOR,
+        trigger: triggerContext.type,
+        mode: effectiveMode,
         errorCode: mapped.code,
         message: mapped.message,
         recommendation: mapped.recommendation,

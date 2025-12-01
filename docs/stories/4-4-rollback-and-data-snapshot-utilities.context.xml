@@ -1,0 +1,169 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>4</storyId>
+    <title>rollback-and-data-snapshot-utilities</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-17T16:39:22Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/4-4-rollback-and-data-snapshot-utilities.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As a reliability engineer</asA>
+    <iWant>I want to reseed MongoDB with baseline anonymized data</iWant>
+    <soThat>so that the demo recovers quickly after rehearsals</soThat>
+    <tasks><task id="T1" ac="AC1">
+  <summary>Implement rollback/snapshot utility to load baseline JSON and restore devices, config, and audit_logs with idempotent upserts.</summary>
+  <subtask>Preserve anonymization fields and indexes; verify TTL stays disabled where required.</subtask>
+</task>
+<task id="T2" ac="AC2">
+  <summary>Emit audit event with reset=true and operator identity including counts per collection and duration.</summary>
+  <subtask>Add confirmation/guardrails and enforce allowlist/auth to prevent accidental production restores.</subtask>
+</task>
+<task id="T3" ac="AC3">
+  <summary>Document how to capture new snapshots post-demo, including export paths, secrets handling, and checksum/size notes.</summary>
+  <subtask>Provide retry/backoff guidance and snapshot integrity checks.</subtask>
+</task>
+<task id="T4" ac="AC1,AC2,AC3">
+  <summary>Add tests/verification using fixtures to ensure restores succeed, audit events log, and no data loss occurs on failure.</summary>
+  <subtask>Validate retries/backoff on Mongo operations and cleanup behavior.</subtask>
+</task></tasks>
+  </story>
+
+  <acceptanceCriteria><criterion id="AC1">
+  <statement>Provide script that loads snapshot JSON and restores `devices`, `config`, and `audit_logs` collections.</statement>
+  <source>docs/stories/4-4-rollback-and-data-snapshot-utilities.md#acceptance-criteria</source>
+</criterion>
+<criterion id="AC2">
+  <statement>Successful restore logs audit event with `reset=true` flag and operator identity.</statement>
+  <source>docs/stories/4-4-rollback-and-data-snapshot-utilities.md#acceptance-criteria</source>
+</criterion>
+<criterion id="AC3">
+  <statement>Document how to capture new snapshots after successful demo runs.</statement>
+  <source>docs/stories/4-4-rollback-and-data-snapshot-utilities.md#acceptance-criteria</source>
+</criterion></acceptanceCriteria>
+
+  <artifacts>
+    <docs><doc>
+  <path>docs/epics.md</path>
+  <title>Epic D – Governance & Observability Guardrails</title>
+  <section>Story [D4]: Rollback and data snapshot utilities</section>
+  <snippet>Epic D4 defines snapshot restore for devices/config/audit_logs with reset audit events and documentation for capturing new snapshots.</snippet>
+</doc>
+<doc>
+  <path>docs/PRD.md</path>
+  <title>Product Requirements Document</title>
+  <section>Security</section>
+  <snippet>Security requirements emphasize protecting data and credentials; rollback must enforce auth/allowlist and avoid leaking secrets.</snippet>
+</doc>
+<doc>
+  <path>docs/architecture.md</path>
+  <title>Architecture Overview</title>
+  <section>Observability & audit logging stack</section>
+  <snippet>Observability describes logging reset/audit events with requestId/operator identity for governance traceability.</snippet>
+</doc>
+<doc>
+  <path>docs/architecture.md</path>
+  <title>Architecture Overview</title>
+  <section>Performance Considerations</section>
+  <snippet>Performance guidance recommends optimized bulk loads and index handling to keep restores within App Engine limits.</snippet>
+</doc>
+<doc>
+  <path>docs/stories/2-5-resilient-error-handling-and-rollback-safeguards.md</path>
+  <title>Story 2.5: Resilient error handling and rollback safeguards</title>
+  <section>Implementation Alignment</section>
+  <snippet>Provides rollback guard patterns, error codes, and runbook guidance to reuse for snapshot restores.</snippet>
+</doc>
+<doc>
+  <path>stories/4-3-demo-readiness-smoke-test-suite.md</path>
+  <title>Story 4.3: demo-readiness-smoke-test-suite</title>
+  <section>Learnings and fixtures</section>
+  <snippet>Smoke test patterns and requestId/fixture isolation to carry into snapshot restore verification.</snippet>
+</doc></docs>
+    <code><code>
+  <path>nyu-device-roster/src/app/api/sync/run/route.ts</path>
+  <kind>api-route</kind>
+  <symbol>POST /api/sync/run</symbol>
+  <lines>1-260</lines>
+  <reason>Scheduled sync implementation; snapshot restores must remain compatible with sync expectations.</reason>
+</code>
+<code>
+  <path>nyu-device-roster/src/app/api/sync/manual/route.ts</path>
+  <kind>api-route</kind>
+  <symbol>POST /api/sync/manual</symbol>
+  <lines>1-200</lines>
+  <reason>Manual sync endpoint; ensure restored data supports manual runs without errors.</reason>
+</code>
+<code>
+  <path>nyu-device-roster/src/lib/db.ts</path>
+  <kind>db-helper</kind>
+  <symbol>connectToDatabase</symbol>
+  <lines>1-80</lines>
+  <reason>Shared Mongo connector to reuse in rollback scripts for safe connections.</reason>
+</code>
+<code>
+  <path>nyu-device-roster/src/lib/logging.ts</path>
+  <kind>logging-util</kind>
+  <symbol>logSecretManagerAlert</symbol>
+  <lines>1-130</lines>
+  <reason>Logging utilities for secret/rollback alerts; reuse for reset audit entries.</reason>
+</code></code>
+    <dependencies><dependency ecosystem="node">
+  <package>next@16.0.1</package>
+  <notes>App Router hosting APIs that consume restored data.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>mongoose@8.19.3</package>
+  <notes>MongoDB ODM for snapshot restore and verification.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>pino@10.1.0</package>
+  <notes>Structured logging for audit/reset events.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>next-auth@4.24.13</package>
+  <notes>Auth layer ensuring rollback operations respect allowlist and operator identity.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>react@19.2.0</package>
+  <notes>Frontend components that depend on restored data; relevant for verification views.</notes>
+</dependency></dependencies>
+  </artifacts>
+
+  <constraints><constraint>Enforce authentication/allowlist; block restores without operator identity and confirmation.</constraint>
+<constraint>Keep rollback runtime efficient: stream inserts and rebuild indexes after load to stay within platform limits.</constraint>
+<constraint>Reuse audit logging patterns to capture reset=true events with requestId/userEmail and collection counts.</constraint>
+<constraint>Store snapshots in repo-approved locations without secrets; use Secret Manager for URIs.</constraint></constraints>
+  <interfaces><interface>
+  <name>connectToDatabase</name>
+  <kind>db-helper</kind>
+  <signature>async function connectToDatabase(uri?: string): Promise<typeof mongoose></signature>
+  <path>nyu-device-roster/src/lib/db.ts</path>
+  <reason>Database connector the rollback utility will use.</reason>
+</interface>
+<interface>
+  <name>logSecretManagerAlert</name>
+  <kind>logging-util</kind>
+  <signature>logSecretManagerAlert({ event: "SECRET_MANAGER_FAILURE"; secretKey: string; reason: string; attempt?: number; action?: string; metadata?: Record<string, unknown>; })</signature>
+  <path>nyu-device-roster/src/lib/logging.ts</path>
+  <reason>Logging helper to surface credential or restore issues.</reason>
+</interface>
+<interface>
+  <name>POST /api/sync/run</name>
+  <kind>API route</kind>
+  <signature>POST → { data: { counts, duration }, error: null }</signature>
+  <path>nyu-device-roster/src/app/api/sync/run/route.ts</path>
+  <reason>Scheduled sync endpoint that must operate on restored datasets.</reason>
+</interface></interfaces>
+  <tests>
+    <standards>Use Vitest for unit tests and integration tests for rollback utility; add fixtures for baseline snapshots.</standards>
+    <locations><location>nyu-device-roster/tests/unit</location>
+<location>nyu-device-roster/tests/integration</location>
+<location>nyu-device-roster/tests/fixtures</location></locations>
+    <ideas><idea ac="AC1">Test rollback script restores devices/config/audit_logs from fixture snapshots with idempotent upserts.</idea>
+<idea ac="AC2">Verify audit event logs reset=true with operator and collection counts after restore.</idea>
+<idea ac="AC3">Doc test ensuring snapshot capture steps and checksums are documented with expected paths.</idea>
+<idea ac="AC1">Failure-mode test simulating Mongo errors to confirm retries/backoff and no partial data loss.</idea></ideas>
+  </tests>
+</story-context>

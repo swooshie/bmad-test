@@ -1,0 +1,111 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>3.3</storyId>
+    <title>Provide Recovery &amp; Dry-Run Mode</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-26T17-30-00Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/3-3-provide-recovery-and-dry-run-mode.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As an engineer on call</asA>
+    <iWant>I want to trigger a dry-run/safe-mode sync that reports would-be mutations without touching MongoDB</iWant>
+    <soThat>so that I can troubleshoot suspicious sheet changes without risking production data drift.</soThat>
+    <tasks>
+      <![CDATA[
+- Task 1: Add dry-run flag handling to worker + APIs (AC1)
+  - Subtask 1.1: Extend `/app/api/sync/run` and `/manual` routes plus Cloud Tasks payloads to accept `mode=dry-run`, plumb the flag through the request envelope, and persist it to `sync_events`. [Tests: npm run test]
+  - Subtask 1.2: Update `workers/sync/index.ts` + persistence helpers so dry-run branches log diffs/metrics but skip Mongo transactions, returning structured results to callers. [Tests: npm run test]
+- Task 2: Preserve telemetry + guardrails in safe mode (AC2, AC4)
+  - Subtask 2.1: Ensure serial audit, header diffing, conflict detection, and SyncStatus banner updates execute identically in dry-run while tagging payloads `mode=dry-run`; keep Slack/email dispatch and `sync_events` entries aligned. [Tests: npm run test]
+  - Subtask 2.2: Add structured logging + alert metadata (referenceId, remediation link) to dry-run summaries so monitoring channels stay actionable. [Tests: npm run test]
+- Task 3: Document operator workflow (AC3)
+  - Subtask 3.1: Update `docs/runbook/sync-operations.md` with dry-run flag instructions, Scheduler header guidance, and incident flow for switching modes. [Tests: documentation review]
+  - Subtask 3.2: Add Dev Notes checklist snippet referencing dry-run usage and expectations for future stories. [Tests: documentation review]
+      ]]>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <![CDATA[
+1. Dry-run flag available via CLI and `/api/sync/run` & `/manual` requests enforces safe-mode execution that skips MongoDB writes yet produces the same sync summary (rows added/updated/skipped plus serial audit metrics) and emits `sync_events` telemetry for every run. [Source: docs/epics.md:178-191][Source: docs/runbook/sync-operations.md:1-120]
+2. Dry-run execution still performs schema/serial audits, header diffing, conflict logging, and SyncStatus banner updates with payloads labeled `mode=dry-run`, so operators receive the same guardrail signals as production runs. [Source: docs/epics.md:178-191][Source: docs/architecture.md:120-210]
+3. Operations documentation explains how to toggle modes (flags, config, Scheduler headers) and outlines incident steps so on-call responders can move between dry-run and production without pausing cron. [Source: docs/runbook/sync-operations.md:120-220]
+4. Alert and audit outputs (Slack/email, SyncStatus, `sync_events`, Dev Agent Record) include reference IDs and remediation links per FR-005/FR-006, preserving observability traceability. [Source: docs/PRD.md:120-190][Source: docs/architecture.md:140-210]
+    ]]>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md" title="Epic 3 – Sync Observability &amp; Guardrails" section="Story EP3.3" snippet="Defines the dry-run/safe-mode capability, insisting on CLI or API flags plus documentation so engineers can rehearse sync runs without mutating MongoDB." />
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Functional Requirements FR-005/FR-006" snippet="FR-005 demands structured telemetry for sync runs and FR-006 mandates schema-change guardrails, making dry-run observability and alerting alignment mandatory." />
+      <doc path="docs/architecture.md" title="Architecture" section="Sync Pipeline &amp; Observability" snippet="Details the Cloud Scheduler → Cloud Tasks → `/api/sync/run` topology, Pino logging, SyncStatus banner, and audit trail expectations the dry-run flag must preserve." />
+      <doc path="docs/runbook/sync-operations.md" title="Sync Operations Runbook" section="Configuration &amp; Normalization Rules" snippet="Explains manual API usage, status banner payloads, serial audits, and operator steps for pausing/resuming syncs—key references for documenting dry-run mode." />
+      <doc path="docs/data-models.md" title="Data Models" section="SyncEvent collection" snippet="Describes sync_events schema fields and indexes so safe-mode executions can continue storing telemetry without persisting Mongo writes." />
+      <doc path="docs/development-guide.md" title="Development Guide" section="Common Commands" snippet="Outlines npm scripts for linting, unit tests, accessibility checks, and smoke runs that must cover the new dry-run branches." />
+    </docs>
+    <code>
+      <codeArtifact path="nyu-device-roster/workers/sync/index.ts" kind="worker" symbol="runSyncTask" lines="1-220" reason="Primary orchestrator that fetches Sheets data, diffs rows, and writes to Mongo; introduce a dry-run branch that logs outcomes without committing writes." />
+      <codeArtifact path="nyu-device-roster/app/api/sync/run/route.ts" kind="api" symbol="POST /api/sync/run" lines="1-160" reason="Scheduler/manual entry point validating headers and invoking the worker; must accept `mode=dry-run` and propagate it downstream." />
+      <codeArtifact path="nyu-device-roster/app/api/sync/manual/route.ts" kind="api" symbol="POST /api/sync/manual" lines="1-140" reason="Manager-triggered flow creating Cloud Tasks; needs flag plumbing plus audit logging for dry-run executions." />
+      <codeArtifact path="nyu-device-roster/lib/sync-status.ts" kind="library" symbol="SyncStatusState" lines="1-200" reason="Central store powering the UI banner; add schema/dry-run warning states so operators see safe-mode indicators." />
+      <codeArtifact path="nyu-device-roster/lib/logging.ts" kind="library" symbol="logger" lines="1-120" reason="Pino logging helper that should tag dry-run executions with reference IDs and mode metadata for observability." />
+      <codeArtifact path="nyu-device-roster/scripts/reset-sync.ts" kind="script" symbol="resetSync" lines="1-180" reason="Reference script for safe Mongo operations; document how dry-run mode interacts with reset/rollback utilities." />
+    </code>
+    <dependencies>
+      <dependency ecosystem="node" manifest="nyu-device-roster/package.json">
+        <package name="next" version="16.0.1" />
+        <package name="next-auth" version="5.0.0" />
+        <package name="mongoose" version="8.6.0" />
+        <package name="@google-cloud/tasks" version="6.2.1" />
+        <package name="@google-cloud/secret-manager" version="6.1.1" />
+        <package name="@tanstack/react-query" version="5.90.6" />
+        <package name="pino" version="10.1.0" />
+        <package name="zod" version="4.1.0" />
+        <package name="vitest" version="4.0.7" scope="devDependency" />
+      </dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <![CDATA[
+- Maintain the documented Cloud Scheduler → Cloud Tasks → `/api/sync/run` pipeline; dry-run mode is a behavioral flag, not a new workflow. [Source: docs/architecture.md:130-200]
+- All telemetry must continue flowing through `lib/logging.ts` and `sync_events` so `/api/metrics` and SyncStatus remain the single source of truth. [Source: docs/architecture.md:150-210][Source: docs/data-models.md:24-44]
+- Do not bypass serial audit or column registry steps; safe-mode executions still rely on the normalization & audit rules outlined in the runbook. [Source: docs/runbook/sync-operations.md:60-150]
+- Any operator controls or CLI flags must be documented in the runbook and Dev Notes so future stories inherit consistent usage. [Source: docs/development-guide.md:1-40][Source: docs/runbook/sync-operations.md:120-220]
+- Update Dev Agent Record “Context Reference” with the generated XML and ensure future story-context runs reuse this file rather than duplicating artifacts. [Source: bmad/bmm/workflows/4-implementation/story-context/instructions.md]
+    ]]>
+  </constraints>
+  <interfaces>
+    <![CDATA[
+- REST POST `/api/sync/run` – Scheduler/manual entrypoint (App Router route) that validates cron headers, triggers the worker, and will now honor `mode=dry-run` payloads while still emitting SyncStatus updates. (nyu-device-roster/app/api/sync/run/route.ts)
+- REST POST `/api/sync/manual` – Authenticated manager endpoint enqueueing Cloud Tasks with requestId metadata; propagate the dry-run flag through Cloud Tasks message attributes. (nyu-device-roster/app/api/sync/manual/route.ts)
+- Worker `runSyncTask(options)` – Core orchestrator that fetches Sheets rows, audits serials, diffs Mongo, and records `sync_events`; implement branching so `options.mode === 'dry-run'` skips persistence. (nyu-device-roster/workers/sync/index.ts)
+- Type `SyncStatusState` / helper `publishSyncStatus` – Shared interface for UI banners and alerts; extend schema to include `mode` and dry-run warning fields. (nyu-device-roster/lib/sync-status.ts)
+- Collection `sync_events` – Mongo model capturing telemetry across triggers; ensure dry-run metadata (mode, referenceId, requestedBy) is written for auditing. (nyu-device-roster/models/SyncEvent.ts + docs/data-models.md)
+    ]]>
+  </interfaces>
+  <tests>
+    <standards>
+      <![CDATA[
+Follow the development guide: run `npm run test` for Vitest coverage, `npm run lint`, `npm run test:accessibility`, and `npm run smoke` before merging; add focused unit tests for worker/APIs plus documentation review for runbook updates.]]>
+    </standards>
+    <locations>
+      <![CDATA[
+- Unit specs: `nyu-device-roster/tests/unit/**/*.test.ts` (worker, API envelope, logging helpers)
+- Integration/e2e: `nyu-device-roster/tests/integration/**/*.test.ts`, `nyu-device-roster/tests/smoke/`
+- Documentation updates: `docs/runbook/` tracked alongside code PRs for reviewer verification
+      ]]>
+    </locations>
+    <ideas>
+      <![CDATA[
+- AC1: Write worker unit tests stubbing Mongo persistence to assert dry-run branches skip writes while emitting SyncEvent payloads with diff metrics.
+- AC2: Add integration tests for `/api/sync/run` verifying SyncStatus responses and Slack/email dispatch mocks include `mode=dry-run` indicators.
+- AC3: Create doc-check automation or lint step ensuring runbook sections mention the new flag, plus integration tests toggling config to confirm cron + manual flows respect mode changes.
+- AC4: Extend SyncStatus/state tests to confirm alert payloads include referenceId/remediation link and that Dev Agent Record templates capture the generated context path.
+      ]]>
+    </ideas>
+  </tests>
+</story-context>

@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 
 type StoreState = {
-  selectedDeviceId: string | null;
+  selectedSerial: string | null;
   isOpen: boolean;
 };
 
@@ -12,7 +12,7 @@ type Listener = () => void;
 const listeners = new Set<Listener>();
 
 let state: StoreState = {
-  selectedDeviceId: null,
+  selectedSerial: null,
   isOpen: false,
 };
 
@@ -33,8 +33,8 @@ const subscribe = (listener: Listener) => {
 export const useDeviceSelection = () =>
   useSyncExternalStore(subscribe, () => state, () => state);
 
-export const openDeviceDrawer = (deviceId: string) => {
-  setState({ selectedDeviceId: deviceId, isOpen: true });
+export const openDeviceDrawer = (serial: string) => {
+  setState({ selectedSerial: serial, isOpen: true });
 };
 
 export const closeDeviceDrawer = () => {
@@ -42,6 +42,6 @@ export const closeDeviceDrawer = () => {
 };
 
 export const __resetDeviceSelection = () => {
-  state = { selectedDeviceId: null, isOpen: false };
+  state = { selectedSerial: null, isOpen: false };
   notify();
 };

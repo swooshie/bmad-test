@@ -1,8 +1,93 @@
 import connectToDatabase from "@/lib/db";
-import SyncEventModel, { type SyncEventType } from "@/models/SyncEvent";
+import { recordAuditLogFromSyncEvent } from "@/lib/audit/auditLogs";
+import SyncEventModel, {
+  type SyncEventType,
+  type SyncRunMetadata,
+  type SyncRunStatus,
+  type SyncRunTrigger,
+} from "@/models/SyncEvent";
 import logger from "@/lib/logging";
 import type { AllowlistDiff } from "@/lib/config";
 import type { DeviceGridQueryFilters } from "@/lib/devices/grid-query";
+
+export type SyncRunTelemetryPayload = {
+  sheetId: string;
+  runId: string;
+  trigger: SyncRunTrigger;
+  requestedBy?: string | null;
+  anonymized?: boolean;
+  mode?: "live" | "dry-run";
+  startedAt: string;
+  completedAt: string;
+  durationMs: number;
+  rowsProcessed: number;
+  rowsSkipped?: number;
+  conflicts?: number;
+  rowCount?: number;
+  status: SyncRunStatus;
+  queueLatencyMs?: number | null;
+  reason?: string | null;
+  anomalies?: string[];
+  added?: number;
+  updated?: number;
+  unchanged?: number;
+  legacyIdsUpdated?: number;
+  serialConflicts?: number;
+  columnsAdded?: number;
+  columnsRemoved?: number;
+  columnTotal?: number;
+  columnVersion?: string;
+  rowsAudited?: number;
+  missingSerialCount?: number;
+  skippedRows?: unknown[];
+  schemaChange?: {
+    added: string[];
+    removed: string[];
+    renamed: Array<{ from: string; to: string }>;
+    previousVersion?: string | null;
+    currentVersion?: string | null;
+    detectedAt: string;
+    alertDispatched?: boolean;
+    suppressionReason?: string | null;
+    mode?: "live" | "dry-run";
+  };
+};
+
+export const serializeSyncRunTelemetry = (
+  payload: SyncRunTelemetryPayload
+): SyncRunMetadata => ({
+  sheetId: payload.sheetId,
+  runId: payload.runId,
+  trigger: payload.trigger,
+  requestedBy: payload.requestedBy ?? null,
+  anonymized: payload.anonymized ?? false,
+  mode: payload.mode ?? "live",
+  startedAt: payload.startedAt,
+  completedAt: payload.completedAt,
+  durationMs: payload.durationMs,
+  rowsProcessed: payload.rowsProcessed,
+  rowsSkipped: payload.rowsSkipped ?? 0,
+  skipped: payload.rowsSkipped ?? 0,
+  conflicts: payload.conflicts ?? payload.serialConflicts ?? 0,
+  rowCount: payload.rowCount ?? payload.rowsProcessed,
+  status: payload.status,
+  queueLatencyMs: payload.queueLatencyMs ?? null,
+  reason: payload.reason ?? null,
+  anomalies: payload.anomalies ?? [],
+  added: payload.added ?? 0,
+  updated: payload.updated ?? 0,
+  unchanged: payload.unchanged ?? 0,
+  legacyIdsUpdated: payload.legacyIdsUpdated ?? 0,
+  serialConflicts: payload.serialConflicts ?? payload.conflicts ?? 0,
+  columnsAdded: payload.columnsAdded ?? 0,
+  columnsRemoved: payload.columnsRemoved ?? 0,
+  columnTotal: payload.columnTotal ?? null,
+  columnVersion: payload.columnVersion ?? null,
+  rowsAudited: payload.rowsAudited ?? 0,
+  missingSerialCount: payload.missingSerialCount ?? 0,
+  skippedRows: payload.skippedRows ?? [],
+  schemaChange: payload.schemaChange ?? undefined,
+});
 
 export type AuthFailureAuditPayload = {
   route: string;
@@ -27,6 +112,14 @@ export const recordAuthFailureEvent = async (
     ip: payload.ip,
     userEmail: payload.userEmail ?? null,
   });
+
+  await recordAuditLogFromSyncEvent({
+    eventType: "AUTH_INVALID_SESSION",
+    action: payload.reason,
+    actor: payload.userEmail,
+    status: "error",
+    context: { route: payload.route, method: payload.method, requestId: payload.requestId, ip: payload.ip },
+  });
 };
 
 export const recordConfigValidationEvent = async (payload: {
@@ -49,6 +142,13 @@ export const recordConfigValidationEvent = async (payload: {
     method: "SYSTEM",
     reason: payload.reason,
     metadata: payload.metadata ?? {},
+  });
+
+  await recordAuditLogFromSyncEvent({
+    eventType: "CONFIG_VALIDATION",
+    action: payload.reason,
+    status: "success",
+    context: payload.metadata,
   });
 };
 
@@ -76,6 +176,20 @@ export const recordAllowlistChangeEvent = async (payload: {
       unchanged: payload.diff.unchanged,
     },
   });
+
+  await recordAuditLogFromSyncEvent({
+    eventType: "ALLOWLIST_CHANGE",
+    action: "ALLOWLIST_UPDATED",
+    actor: payload.userEmail,
+    status: "success",
+    context: {
+      route: payload.route,
+      method: payload.method,
+      diff: payload.diff,
+      requestId: payload.requestId,
+      ip: payload.ip,
+    },
+  });
 };
 
 export const recordAllowlistAccessDeniedEvent = async (payload: {
@@ -96,6 +210,20 @@ export const recordAllowlistAccessDeniedEvent = async (payload: {
     userEmail: payload.userEmail,
     requestId: payload.requestId,
     ip: payload.ip,
+  });
+
+  await recordAuditLogFromSyncEvent({
+    eventType: "ALLOWLIST_ACCESS_DENIED",
+    action: payload.reason,
+    actor: payload.userEmail,
+    status: "error",
+    context: {
+      route: payload.route,
+      method: payload.method,
+      requestId: payload.requestId,
+      ip: payload.ip,
+    },
+    errorCode: payload.reason,
   });
 };
 
@@ -127,6 +255,21 @@ export const recordGovernanceExportEvent = async (payload: {
       filters: payload.filters,
     },
   });
+
+  await recordAuditLogFromSyncEvent({
+    eventType: "GOVERNANCE_EXPORT",
+    action: "GOVERNANCE_EXPORT_TRIGGERED",
+    actor: payload.userEmail,
+    status: "success",
+    context: {
+      route: payload.route,
+      method: payload.method,
+      requestId: payload.requestId,
+      ip: payload.ip,
+      flaggedCount: payload.flaggedCount,
+      totalCount: payload.totalCount,
+    },
+  });
 };
 
 export const recordAnonymizationToggleEvent = async (payload: {
@@ -151,6 +294,20 @@ export const recordAnonymizationToggleEvent = async (payload: {
       enabled: payload.enabled,
     },
   });
+
+  await recordAuditLogFromSyncEvent({
+    eventType: "ANONYMIZATION_TOGGLED",
+    action: payload.enabled ? "ANONYMIZATION_ENABLED" : "ANONYMIZATION_DISABLED",
+    actor: payload.userEmail,
+    status: "success",
+    context: {
+      route: payload.route,
+      method: payload.method,
+      requestId: payload.requestId,
+      ip: payload.ip,
+      enabled: payload.enabled,
+    },
+  });
 };
 
 export const recordFilterChipUpdatedEvent = async (payload: {
@@ -160,6 +317,7 @@ export const recordFilterChipUpdatedEvent = async (payload: {
   total?: number | null;
   requestId?: string;
   userEmail?: string | null;
+  columnsVersion?: string;
 }): Promise<void> => {
   try {
     await connectToDatabase();
@@ -181,6 +339,22 @@ export const recordFilterChipUpdatedEvent = async (payload: {
     metadata: {
       filters: payload.filters,
       total: payload.total ?? null,
+      columnsVersion: payload.columnsVersion ?? null,
+    },
+  });
+
+  await recordAuditLogFromSyncEvent({
+    eventType: "FILTER_CHIP_UPDATED",
+    action: "FILTERS_APPLIED",
+    actor: payload.userEmail,
+    status: "success",
+    context: {
+      route: payload.route,
+      method: payload.method,
+      filters: payload.filters,
+      total: payload.total ?? null,
+      requestId: payload.requestId,
+      columnsVersion: payload.columnsVersion ?? null,
     },
   });
 };
@@ -215,6 +389,20 @@ export const recordIconActionEvent = async (payload: {
       anonymized: payload.anonymized ?? false,
       reducedMotion: payload.reducedMotion ?? false,
       recordedAt: new Date().toISOString(),
+    },
+  });
+
+  await recordAuditLogFromSyncEvent({
+    eventType: "ICON_ACTION_TRIGGERED",
+    action: "ICON_ACTION_TRIGGERED",
+    status: "success",
+    context: {
+      actionId: payload.actionId,
+      durationMs: payload.durationMs,
+      anonymized: payload.anonymized ?? false,
+      reducedMotion: payload.reducedMotion ?? false,
+      requestId: payload.requestId,
+      route: payload.route,
     },
   });
 };

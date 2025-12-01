@@ -4,6 +4,7 @@ import Link from "next/link";
 import SyncStatusBanner from "../components/SyncStatusBanner";
 import IconActionRow from "../components/IconActionRow";
 import { MANAGER_ROUTES } from "@/lib/routes";
+import { AuditPanel } from "./components/AuditPanel";
 
 const checklist = [
   {
@@ -46,6 +47,7 @@ export default function DashboardPage() {
         <SyncStatusBanner />
       </Suspense>
       <IconActionRow />
+      <AuditPanel />
       <Checklist />
       <section className="rounded-2xl border border-white/10 bg-white/5 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">

@@ -1,9 +1,40 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const logPerformanceMetric = vi.fn();
+const connectToDatabase = vi.fn();
+const recordAuditLog = vi.fn();
+const aggregateMetrics = vi.fn();
+
+let currentSession: { user?: { email?: string | null; managerRole?: string | null } } = {
+  user: { email: "lead@example.com", managerRole: "lead" },
+};
 
 vi.mock("@/lib/logging", () => ({
   logPerformanceMetric,
+  logger: {
+    info: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+vi.mock("@/lib/auth/sessionMiddleware", () => ({
+  __esModule: true,
+  withSession:
+    (handler: (request: any) => Promise<Response> | Response) => (request?: Request) =>
+      handler(Object.assign(request ?? new Request("http://localhost/api/metrics"), { session: currentSession })),
+}));
+
+vi.mock("@/lib/db", () => ({
+  __esModule: true,
+  default: connectToDatabase,
+}));
+
+vi.mock("@/lib/metrics/syncAggregations", () => ({
+  aggregateSyncMetrics: aggregateMetrics,
+}));
+
+vi.mock("@/lib/audit/auditLogs", () => ({
+  recordAuditLog,
 }));
 
 const buildRequest = (body: unknown) =>
@@ -55,5 +86,85 @@ describe("POST /api/metrics", () => {
         anonymized: true,
       })
     );
+  });
+});
+
+describe("GET /api/metrics", () => {
+  beforeEach(() => {
+    aggregateMetrics.mockReset();
+    connectToDatabase.mockResolvedValue(undefined);
+    recordAuditLog.mockReset();
+    currentSession = { user: { email: "lead@example.com", managerRole: "lead" } };
+  });
+
+  it("enforces manager or lead access", async () => {
+    currentSession = { user: { email: "viewer@example.com", managerRole: null } };
+    const { GET } = await import("@/app/api/metrics/route");
+
+    const response = await GET(new Request("http://localhost/api/metrics") as never);
+
+    expect(response.status).toBe(403);
+    expect(recordAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "error", errorCode: "FORBIDDEN" })
+    );
+    expect(aggregateMetrics).not.toHaveBeenCalled();
+  });
+
+  it("returns aggregated sync metrics for last12h and cumulative windows", async () => {
+    const aggregatePayload = [
+      {
+        perTrigger: [
+          {
+            trigger: "manual",
+            runs: 2,
+            success: 2,
+            failure: 0,
+            totalDurationMs: 300,
+            avgDurationMs: 150,
+            totalRows: 40,
+          },
+        ],
+        totals: [
+          {
+            runs: 2,
+            success: 2,
+            failure: 0,
+            totalDurationMs: 300,
+            avgDurationMs: 150,
+            totalRows: 40,
+          },
+        ],
+      },
+    ];
+
+    aggregateMetrics.mockResolvedValueOnce({
+      perTrigger: aggregatePayload[0].perTrigger,
+      totals: aggregatePayload[0].totals[0],
+    });
+    aggregateMetrics.mockResolvedValueOnce({
+      perTrigger: aggregatePayload[0].perTrigger,
+      totals: aggregatePayload[0].totals[0],
+    });
+
+    const { GET } = await import("@/app/api/metrics/route");
+    const response = await GET(new Request("http://localhost/api/metrics") as never);
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      data: {
+        last12h: { totals: { runs: number }; perTrigger: Array<{ trigger: string }> };
+        cumulative: { totals: { runs: number } };
+        webhook: { enabled: boolean };
+      };
+    };
+
+    expect(payload.data.last12h.totals.runs).toBe(2);
+    expect(payload.data.last12h.perTrigger[0].trigger).toBe("manual");
+    expect(payload.data.cumulative.totals.success).toBe(2);
+    expect(payload.data.webhook.enabled).toBe(false);
+    expect(recordAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "success", action: "METRICS_FETCH" })
+    );
+    expect(aggregateMetrics).toHaveBeenCalledTimes(2);
   });
 });

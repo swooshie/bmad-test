@@ -1,0 +1,106 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.1</storyId>
+    <title>Capture Dynamic Columns from Sheet</title>
+    <status>Approved</status>
+    <generatedAt>2025-11-24T15:24:19Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-1-capture-dynamic-columns-from-sheet.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As a sync developer</asA>
+    <iWant>I want the ingestion job to detect all column headers automatically</iWant>
+    <soThat>so that new metadata becomes available without code changes</soThat>
+    <tasks>
+      <![CDATA[
+- Enhance Sheets fetch + header registry (AC1): extend `lib/google-sheets.ts` to return ordered headers, add a header-map helper that normalizes/compares names, and persist registry entries inside the sync transaction.
+- Update normalization + persistence for dynamic attributes (AC2): teach `workers/sync/transform.ts` to drop unknown headers into `dynamicAttributes`, update `contentHash`, and extend DeviceModel/schema definitions and indexes without regressing serial behavior.
+- Surface column metadata via API + UI (AC2, AC3): update `device-query-service` + `/api/devices` to return `{ devices, columns, meta }`, optionally add `/api/devices/columns`, and replace static `DEVICE_COLUMNS` usage in hooks/components with server-provided definitions while preserving personalization.
+- Observability + testing (AC4): extend `SyncStatusBanner`/`lib/sync-status.ts` plus `sync_events` to log `columnsAdded/Removed/Total`, refresh runbook guidance, and add Vitest/Playwright coverage for header normalization, sync integration (5/20/100 columns), API contracts, and UI personalization flows.
+      ]]>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <![CDATA[
+1. Sync pipeline captures ordered headers each run, normalizes names to snake_case keys, and persists a column registry with telemetry about added/removed columns.
+2. Device documents store dynamicAttributes with deterministic naming and indexing, and `/api/devices` responses include a `columns` array describing the current schema.
+3. React Query grid renders whatever columns exist (up to 100), preserves personalization via local storage, and surfaces anonymization behavior per UX guidance.
+4. Column changes trigger `sync_events`, SyncStatus banner cues, and automated tests covering 5/20/100-column scenarios plus API/UI contract coverage.
+    ]]>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Project-Type Specific Requirements" snippet="FR-003/FR-004 demand runtime header ingestion, Mongo persistence of arbitrary columns, and `/api/devices` responses that always mirror the Google Sheet schema." />
+      <doc path="docs/epics.md" title="Epics" section="Story EP2.1" snippet="Defines Capture Dynamic Columns with acceptance criteria around header detection, schema maps, and automated tests for 5/20/100-column scenarios." />
+      <doc path="docs/tech-spec-epic-2.md" title="Epic 2 Technical Specification" section="Services and Modules" snippet="Introduces the header registry, DeviceModel dynamicAttributes, and telemetry fields (`columnsAdded`, `columnsRemoved`, `totalColumns`) that must be emitted with each sync." />
+      <doc path="docs/architecture.md" title="Architecture" section="Sync Pipeline & API Contracts" snippet="Describes the Cloud Scheduler → Cloud Tasks ingest loop, copy-on-write safeguards, and `/api/devices` envelopes that need column metadata without breaking `{ data, meta, error }`." />
+      <doc path="docs/runbook/sync-operations.md" title="Sync Operations Runbook" section="Normalization & Upsert Rules" snippet="Covers sheet header mapping, deterministic casting, and sync_events logging expectations that the dynamic column registry must continue to honor." />
+      <doc path="docs/ux-design-specification.md" title="UX Design Specification" section="Data Grid Journeys" snippet="Empire layout relies on GitLab-style column chips, density controls, and anonymization presets, so the grid must render arbitrary columns while preserving personalization." />
+    </docs>
+    <code>
+      <codeArtifact path="nyu-device-roster/src/lib/google-sheets.ts" kind="library" symbol="fetchSheetData" lines="1-200" reason="Central Sheets client that must emit ordered headers and metrics powering the header registry." />
+      <codeArtifact path="nyu-device-roster/src/workers/sync/transform.ts" kind="transform" symbol="normalizeSheetRows" lines="1-200" reason="Normalization pipeline that maps sheet rows into Device payloads and will extend to populate dynamicAttributes and contentHash updates." />
+      <codeArtifact path="nyu-device-roster/src/workers/sync/index.ts" kind="worker" symbol="runDeviceSync" lines="320-520" reason="Controls transactions/copy-on-write fallbacks and is responsible for writing the column registry alongside device upserts." />
+      <codeArtifact path="nyu-device-roster/src/models/Device.ts" kind="model" symbol="DeviceModel" lines="1-160" reason="Holds schema/index definitions that need `dynamicAttributes` while retaining serial + legacy deviceId behavior." />
+      <codeArtifact path="nyu-device-roster/src/app/api/devices/device-query-service.ts" kind="service" symbol="queryDeviceGrid" lines="1-220" reason="Builds Mongo queries and response payloads; must surface `{ devices, columns, meta }` for the React grid." />
+      <codeArtifact path="nyu-device-roster/src/app/api/devices/route.ts" kind="api" symbol="GET /api/devices` handler" lines="1-160" reason="Exposes the grid endpoint and will include column metadata plus anonymization-aware payloads." />
+      <codeArtifact path="nyu-device-roster/src/app/(manager)/devices/hooks/useDeviceGrid.ts" kind="hook" symbol="useDeviceGrid" lines="1-200" reason="React Query hook managing cache keys, personalization, and column visibility; must consume server-provided columns." />
+      <codeArtifact path="nyu-device-roster/src/app/(manager)/devices/types.ts" kind="definition" symbol="DEVICE_COLUMNS" lines="1-120" reason="Current static column definitions that will transition to dynamic metadata while preserving fallbacks." />
+      <codeArtifact path="nyu-device-roster/src/components/SyncStatusBanner.tsx" kind="component" symbol="SyncStatusBanner" lines="1-120" reason="Surfaces ingest telemetry and needs new messaging for column-change events." />
+      <codeArtifact path="nyu-device-roster/src/lib/sync-status.ts" kind="state" symbol="SyncStatusState" lines="1-160" reason="Shared state store that will carry new metrics (`columnsAdded`, `columnsRemoved`, totals) feeding the banner and UI cues." />
+    </code>
+    <dependencies>
+      <dependency ecosystem="node" manifest="nyu-device-roster/package.json">
+        <package name="next" version="16.0.1" reason="Hosts App Router APIs and the dashboard views that will render dynamic columns." />
+        <package name="mongoose" version="^8.19.3" reason="Schema/index enforcement for DeviceModel and future column registry collections." />
+        <package name="@tanstack/react-query" version="^5.90.10" reason="Drives the device grid caching and personalization logic that must adapt to server-provided columns." />
+        <package name="zod" version="^4.1.12" reason="Validates `/api/devices` queries/payloads when column metadata is added to envelopes." />
+        <package name="pino" version="^10.1.0" reason="Structured logging for sync_events telemetry, including new column-change metrics." />
+      </dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <![CDATA[
+- Serial-first ingestion from Stories 1-2/1-3 is a prerequisite; dynamic column work cannot reintroduce deviceId-based keys or bypass existing indexes. [Source: docs/stories/1-2-backfill-mongodb-with-serial-keys.md]
+- Header detection must stay within the ≤100-column guardrail to preserve the Cloud Tasks ≤60 s SLA and Mongo document size limits. [Source: docs/PRD.md][Source: docs/tech-spec-epic-2.md]
+- Reuse established structure: sheet utilities under `lib/`, sync logic in `workers/sync`, schemas/models mirrored in `models/` + `schemas/`, and UI assets inside `(manager)/devices`. [Source: docs/source-tree-analysis.md]
+- Telemetry must continue flowing through `SyncEventModel` + Pino with new `columnsAdded/Removed/Total` metrics, and SyncStatus banner messaging should mirror those signals. [Source: docs/runbook/sync-operations.md][Source: docs/architecture.md]
+- API responses must retain the `{ data, meta, error }` envelope, NextAuth session gating, and anonymization behavior even after adding column metadata. [Source: docs/api-contracts.md]
+    ]]>
+  </constraints>
+  <interfaces>
+    <interface name="POST /api/sync/run" kind="REST endpoint" signature="POST /api/sync/run with x-appengine-cron + x-internal-service-token headers" path="nyu-device-roster/src/app/api/sync/run/route.ts" />
+    <interface name="POST /api/sync/manual" kind="REST endpoint" signature="POST /api/sync/manual (NextAuth session required)" path="nyu-device-roster/src/app/api/sync/manual/route.ts" />
+    <interface name="GET /api/devices" kind="REST endpoint" signature="GET /api/devices?search&status[]&condition[]&assignedTo" path="nyu-device-roster/src/app/api/devices/route.ts" />
+    <interface name="GET /api/devices/columns" kind="REST endpoint" signature="GET /api/devices/columns → { data: { columns }, error }" path="nyu-device-roster/src/app/api/devices" />
+    <interface name="Sync Status Hook" kind="hook" signature="useSyncStatus({ pollIntervalMs }): { status, error, isLoading }" path="nyu-device-roster/src/lib/use-sync-status.ts" />
+    <interface name="Device Grid Hook" kind="hook" signature="useDeviceGrid(): { rows, meta, setFilters, setColumnVisibility }" path="nyu-device-roster/src/app/(manager)/devices/hooks/useDeviceGrid.ts" />
+  </interfaces>
+
+  <tests>
+    <standards>
+      <![CDATA[
+- Follow repo defaults: Vitest for unit logic (workers, transforms, hooks) with mongodb-memory-server seams, Playwright + axe for UI flows, and Lighthouse/CLI smoke checks per docs/development-guide.md.]]>
+    </standards>
+    <locations>
+      <![CDATA[
+- Unit: nyu-device-roster/tests/unit/workers/**/*.test.ts, nyu-device-roster/tests/unit/lib/devices/**/*.test.ts
+- Integration/API: nyu-device-roster/tests/integration/sync.test.ts, nyu-device-roster/tests/integration/api/devices.test.ts
+- UI/End-to-End: nyu-device-roster/tests/integration/accessibility.spec.ts, nyu-device-roster/tests/performance/*.mjs
+      ]]>
+    </locations>
+    <ideas>
+      <![CDATA[
+- AC1: Unit-test header normalization + registry diffing for 5/20/100-column fixtures and assert sync_events captures columnsAdded/Removed telemetry.
+- AC2: Integration test sync.run to ensure DeviceModel stores dynamicAttributes, indexes remain intact, and `/api/devices` returns `{ devices, columns }`.
+- AC3: Playwright scenario toggling personalization/local storage to confirm server-provided columns render and anonymization presets still apply.
+- AC4: Unit + component tests verifying SyncStatusState includes new column metrics and SyncStatusBanner messaging updates appropriately.
+      ]]>
+    </ideas>
+  </tests>
+</story-context>

@@ -1,0 +1,108 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.1</storyId>
+    <title>Audit Sheet Serial Integrity</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-19T17:00:08Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-1-audit-sheet-serial-integrity.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As an operations engineer</asA>
+    <iWant>I want the sync job to verify that every row in the Devices sheet includes a valid serial</iWant>
+    <soThat>so that we never ingest ambiguous device records that would break the dashboard magic</soThat>
+    <tasks>
+      <![CDATA[
+- Implement `workers/sync/audit.ts` to stream sheet headers/rows via `lib/google-sheets.ts`, detect empty `serial` cells, and emit anomalies plus remediation hints in structured logs. (AC1, AC2)
+  - Extend `lib/google-sheets.ts` helpers to expose header metadata, include requestId/retry hooks, and convert Google API responses into typed row maps for the audit runner. (AC1)
+- Add dry-run execution surfaces so ops can validate spreadsheets without writes. (AC3)
+  - Provide a Cloud Task flag or `/api/sync/audit` endpoint that returns counts, missing-row details, and recommended fixes while leaving Mongo untouched. (AC3)
+  - Document the dry-run workflow inside `docs/runbook/sync-operations.md` so on-call engineers can run it before each release window. (AC3)
+- Guard `/api/sync/run` and telemetry pipelines with audit results. (AC2, AC4)
+  - Short-circuit ingestion when missing serial rows exist, persist skipped row metadata to `sync_events`, and raise Slack/email alerts so operators remediate before rerunning. (AC2)
+  - Always write `rowsAudited`, `missingSerialCount`, and `skippedRows` arrays to `sync_events` plus Pino logs to keep observability dashboards in sync. (AC4)
+      ]]>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <![CDATA[
+1. The serial audit loads sheet headers + rows via the shared fetcher and logs any row missing `serial`, flagging the row index and reason. [Source: docs/epics.md:44][Source: docs/tech-spec-epic-1.md:32]
+2. Rows lacking serial values never reach the ingest pipeline; they are reported back to operators with remediation metadata and the sync run halts until resolved. [Source: docs/epics.md:45][Source: docs/runbook/sync-operations.md:1-40]
+3. Dry-run mode (Cloud Task flag or `/api/sync/audit` endpoint) returns summary counts and missing-row lists without writing to MongoDB or `devices`. [Source: docs/epics.md:46][Source: docs/architecture.md:247-268]
+4. Audit output records `rowsAudited`, `missingSerialCount`, and `skippedRows` in `sync_events` plus logs so observability dashboards surface the health state. [Source: docs/tech-spec-epic-1.md:30][Source: docs/source-tree-analysis.md:1-40]
+    ]]>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Functional Requirements" snippet="FR-001 states the sync job must treat serial as the immutable key and skip/log rows missing the value, while FR-005 requires structured telemetry so ops can detect misalignment quickly." />
+      <doc path="docs/tech-spec-epic-1.md" title="Epic 1 Technical Specification" section="Services and Modules" snippet="Spec details the Google Sheets Serial Audit worker, dry-run expectations, sync-event logging, and the requirement to short-circuit ingestion when serial gaps exist." />
+      <doc path="docs/epics.md" title="Epic 1 – Serial Source Alignment" section="Story EP1.1" snippet="User story and ACs describe auditing sheet headers/rows, skipping ambiguous entries, and offering dry-run tooling before live sync runs." />
+      <doc path="docs/architecture.md" title="Architecture" section="Sync Pipeline" snippet="Architecture mandates the Cloud Scheduler → Cloud Tasks → /api/sync/run loop with retries, structured logging, and sync_events instrumentation that this audit must plug into." />
+      <doc path="docs/runbook/sync-operations.md" title="Sync Operations Runbook" section="Configuration Checklist & Fetch Module" snippet="Runbook outlines Secret Manager wiring, sheet metadata, and how workers/manual endpoints call fetchSheetData with retries—baseline procedures the audit must follow." />
+      <doc path="docs/development-guide.md" title="Development Guide" section="Prerequisites & Commands" snippet="Lists Google service account requirements, npm scripts (test, verify-sync-indexes, reset-sync), and workflow checkpoints that govern how the audit feature is built and verified." />
+      <doc path="docs/source-tree-analysis.md" title="Source Tree Analysis" section="Lib/Workers overview" snippet="Highlights lib/google-sheets.ts, workers/sync/, models/Device.ts, and sync_events placement—useful for locating modules the audit interacts with." />
+    </docs>
+    <code>
+      <codeArtifact path="nyu-device-roster/src/lib/google-sheets.ts" kind="library" symbol="fetchSheetData" lines="1-120" reason="Typed Google Sheets client the audit must reuse to get headers/rows, retry on rate limits, and emit metrics via shared logging hooks." />
+      <codeArtifact path="nyu-device-roster/src/workers/sync/transform.ts" kind="transform" symbol="normalizeSheetRows" lines="1-160" reason="Current normalization logic already skips missing deviceId rows; new audit can leverage this map to emit anomalies before persistence." />
+      <codeArtifact path="nyu-device-roster/src/workers/sync/index.ts" kind="worker" symbol="runDeviceSync" lines="360-460" reason="Main pipeline that fetches sheets, normalizes rows, writes sync_events, and logs completion—audit must plug in ahead of this to gate ingestion." />
+      <codeArtifact path="nyu-device-roster/src/app/api/sync/run/route.ts" kind="api-route" symbol="POST handler" lines="1-200" reason="Scheduled entrypoint enforcing scheduler tokens, runtime config, and status logging; serial audit should execute inside this path before upserts." />
+      <codeArtifact path="nyu-device-roster/src/lib/sync-status.ts" kind="state-store" symbol="markSyncRunning/markSyncError" lines="1-120" reason="Holds SyncStatusState snapshots consumed by UI; audit outcomes should update this store when runs skip due to missing serials." />
+      <codeArtifact path="nyu-device-roster/src/app/(manager)/components/SyncStatusBanner.tsx" kind="ui-component" symbol="SyncStatusBanner" lines="1-120" reason="Manager UI surfaces sync telemetry via `useSyncStatus`; audit needs to provide meaningful messages for skipped/error states." />
+      <codeArtifact path="nyu-device-roster/src/app/api/sync/status/route.ts" kind="api-route" symbol="GET status" lines="1-20" reason="Simple endpoint powering polling widgets; ensure audit updates propagate here for operators." />
+    </code>
+    <dependencies>
+      <dependency ecosystem="node" manifest="nyu-device-roster/package.json">
+        <package name="next" version="16.0.1" />
+        <package name="@google-cloud/secret-manager" version="6.1.1" />
+        <package name="mongoose" version="8.19.3" />
+        <package name="pino" version="10.1.0" />
+        <package name="@tanstack/react-query" version="5.90.10" />
+        <package name="next-auth" version="4.24.13" />
+        <package name="vitest" version="4.0.7" scope="devDependency" />
+      </dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <![CDATA[
+- Execute audits within the documented Cloud Scheduler → Cloud Tasks → /api/sync/run pipeline; no additional cron or worker surfaces are allowed. [Source: docs/architecture.md]
+- All Google Sheets access must reuse `lib/google-sheets.ts` and service account secrets from Secret Manager—credentials cannot be duplicated or embedded. [Source: docs/runbook/sync-operations.md]
+- Structured telemetry must write to `sync_events` with counts, anomalies, and trigger metadata so dashboards remain consistent. [Source: docs/tech-spec-epic-1.md]
+- Respect the ≤60-second sync SLA: audits must stream headers/rows quickly and fail fast when anomalies exceed thresholds. [Source: docs/architecture.md]
+- Follow the shared response envelope (`{ data, error }`) for any new API endpoints to keep clients consistent. [Source: docs/api-contracts.md]
+    ]]>
+  </constraints>
+  <interfaces>
+    <![CDATA[
+- REST POST `/api/sync/run` – Scheduler-triggered handler that validates headers, loads runtime config, runs audits, and enqueues device sync. Defined in `nyu-device-roster/src/app/api/sync/run/route.ts`.
+- REST GET `/api/sync/status` – Returns the current SyncStatusState snapshot for UI polling (`nyu-device-roster/src/app/api/sync/status/route.ts`).
+- Type `SyncStatusState` – Shared contract describing idle/running/success/error snapshots consumed by banners and CLI tooling (`nyu-device-roster/src/lib/sync-status.ts`).
+- Proposed REST POST `/api/sync/audit` (dry-run) – Should return `{ data: { rowsAudited, missingSerialCount, skippedRows[] }, error }` without persisting changes; hosted under `/api/sync/audit` alongside other sync routes.
+    ]]>
+  </interfaces>
+  <tests>
+    <standards>
+      <![CDATA[
+- Follow the existing Vitest + Playwright stack from docs/development-guide.md, emphasizing `npm run test` for unit coverage and `npm run smoke`/`npm run test:accessibility` for integration checks; audit modules should ship Jest/Vitest suites around validator logic plus integration hooks for /api/sync endpoints.]]>
+    </standards>
+    <locations>
+      <![CDATA[
+- Unit: `nyu-device-roster/tests/unit/workers/sync/**/*.test.ts`, `nyu-device-roster/tests/unit/lib/**/*.test.ts`
+- Integration: `nyu-device-roster/tests/integration/sync.test.ts`, `nyu-device-roster/tests/integration/smoke.test.ts`
+      ]]>
+    </locations>
+    <ideas>
+      <![CDATA[
+- AC1: Add Vitest coverage for the audit runner to assert missing serial detection, structured anomaly payloads, and retry logging when Sheets responses fail.
+- AC2: Extend `tests/unit/workers/sync/index.test.ts` to simulate audit failures and prove `/api/sync/run` short-circuits before normalization/upsert.
+- AC3: Write API tests for the dry-run endpoint (or Cloud Task flag) that confirm Mongo writes are skipped yet counts/snippets return to the caller.
+- AC4: Add log-based metric assertions ensuring `missingSerialCount > 0` results in `status="skipped"` sync_events entries and updates to `SyncStatusState.error` for UI banners.
+      ]]>
+    </ideas>
+  </tests>
+</story-context>

@@ -1,7 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { API_ROUTES } from "@/lib/routes";
+
+import type { DeviceColumn } from "../types";
 import { DEVICE_COLUMNS } from "../types";
 import { usePerformanceMetrics } from "../hooks/usePerformanceMetrics";
 import { useAnonymizationState } from "../state/anonymization-store";
@@ -20,6 +23,33 @@ export const AnonymizationPresetsPanel = ({ onClose }: Props) => {
   const { recordInteraction } = usePerformanceMetrics({ anonymized: enabled });
   const [localPreset, setLocalPreset] = useState<string>(presetId ?? "demo-safe");
   const [localOverrides, setLocalOverrides] = useState<Record<string, boolean>>(overrides ?? {});
+  const [columns, setColumns] = useState<DeviceColumn[]>(DEVICE_COLUMNS);
+
+  useEffect(() => {
+    let active = true;
+    const loadColumns = async () => {
+      try {
+        const response = await fetch(API_ROUTES.deviceColumns, { headers: { Accept: "application/json" } });
+        if (!response.ok) {
+          return;
+        }
+        const payload = (await response.json()) as {
+          data?: { columns?: DeviceColumn[] | null } | null;
+        };
+        const definitions = payload.data?.columns ?? DEVICE_COLUMNS;
+        if (!active) {
+          return;
+        }
+        setColumns(definitions);
+      } catch {
+        // Ignore fetch errors and retain defaults
+      }
+    };
+    void loadColumns();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handlePresetChange = async (id: string) => {
     setLocalPreset(id);
@@ -40,13 +70,18 @@ export const AnonymizationPresetsPanel = ({ onClose }: Props) => {
     onClose();
   };
 
+  const privacyColumns = useMemo(
+    () => columns.filter((column) => column.governance?.anonymized),
+    [columns]
+  );
+
   const columnOptions = useMemo(
     () =>
-      DEVICE_COLUMNS.map((column) => ({
+      (privacyColumns.length ? privacyColumns : columns).map((column) => ({
         id: column.id,
         label: column.label,
       })),
-    []
+    [columns, privacyColumns]
   );
 
   return (

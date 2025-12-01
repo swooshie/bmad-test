@@ -21,8 +21,10 @@ export const ResponsiveShell = ({ userEmail, userName, children }: ResponsiveShe
   const [auditOpen, setAuditOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
+  const auditButtonRef = useRef<HTMLButtonElement | null>(null);
   const reducedMotion = useReducedMotion();
   const { startInteraction, recordInteraction } = usePerformanceMetrics();
+  const wasAuditOpenRef = useRef(false);
 
   useEffect(() => {
     const startedAt = performance.now();
@@ -39,6 +41,10 @@ export const ResponsiveShell = ({ userEmail, userName, children }: ResponsiveShe
     if (auditOpen && closeRef.current) {
       closeRef.current.focus();
     }
+    if (!auditOpen && wasAuditOpenRef.current) {
+      (triggerRef.current ?? auditButtonRef.current)?.focus();
+    }
+    wasAuditOpenRef.current = auditOpen;
   }, [auditOpen]);
 
   return (
@@ -111,8 +117,13 @@ export const ResponsiveShell = ({ userEmail, userName, children }: ResponsiveShe
             label="Audit"
             actionId="audit"
             tooltip="Open audit slide-over"
+            buttonRef={auditButtonRef}
             onPress={() => {
-              triggerRef.current = document.activeElement as HTMLButtonElement;
+              if (auditButtonRef.current) {
+                auditButtonRef.current.focus();
+              }
+              triggerRef.current =
+                auditButtonRef.current ?? (document.activeElement as HTMLButtonElement | null);
               setAuditOpen(true);
             }}
           />
@@ -152,7 +163,7 @@ export const ResponsiveShell = ({ userEmail, userName, children }: ResponsiveShe
                   className="rounded-lg border border-white/20 px-3 py-1 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/5"
                   onClick={() => {
                     setAuditOpen(false);
-                    triggerRef.current?.focus();
+                    (triggerRef.current ?? auditButtonRef.current)?.focus();
                     recordInteraction("dock-audit-close", 0, 200, { reducedMotion });
                   }}
                 >

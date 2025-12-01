@@ -9,29 +9,29 @@ type ExportResponse =
   | { data: null; error: { code: string; message: string } };
 
 export const POST = withSession(async (request) => {
-  const body = (await request.json().catch(() => ({}))) as { deviceId?: string | null };
-  const deviceId = body.deviceId;
+  const body = (await request.json().catch(() => ({}))) as { serial?: string | null };
+  const serial = body.serial;
 
-  if (!deviceId) {
+  if (!serial) {
     return NextResponse.json<ExportResponse>(
-      { data: null, error: { code: "DEVICE_ID_REQUIRED", message: "deviceId is required" } },
+      { data: null, error: { code: "DEVICE_ID_REQUIRED", message: "serial is required" } },
       { status: 400 }
     );
   }
 
-  const url = `/api/devices/export?deviceId=${encodeURIComponent(deviceId)}`;
+  const url = `/api/devices/export?serial=${encodeURIComponent(serial)}`;
 
   logger.info(
     {
       event: "DEVICE_DRAWER_ACTION",
       action: "EXPORT_AUDIT_SNAPSHOT",
-      deviceId,
+      serial,
       userEmail: request.session.user?.email ?? null,
     },
     "Device drawer export triggered"
   );
   await recordSyncEvent({
-    deviceId,
+    serial,
     eventType: "DEVICE_AUDIT_EXPORT",
     route: "/api/devices/actions/export",
     method: "POST",

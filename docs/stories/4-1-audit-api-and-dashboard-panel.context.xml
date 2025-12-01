@@ -1,0 +1,157 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>1</storyId>
+    <title>Audit API and dashboard panel</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-17T15:37:56Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/4-1-audit-api-and-dashboard-panel.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As a lead manager</asA>
+    <iWant>I want to review recent sync runs and anonymization toggles via an audit API and dashboard panel</iWant>
+    <soThat>so that I can confirm governance controls function properly</soThat>
+    <tasks><task id="T1" ac="AC1,AC3">
+  <summary>Define and persist audit schema covering actor, action, timestamp, status, errorCode, and context with TTL disabled and indexes for timestamp and event type.</summary>
+  <subtask>Create or confirm the `audit_logs` collection and align schema validation for long-lived retention.</subtask>
+</task>
+<task id="T2" ac="AC1">
+  <summary>Implement `/api/audit` endpoint that returns the last 20 events sorted by timestamp with filters for event type.</summary>
+  <subtask>Expose actor, action, status, and errorCode fields in the response envelope and log access for governance.</subtask>
+</task>
+<task id="T3" ac="AC2">
+  <summary>Build dashboard audit panel showing audit feed with filters for sync, anonymization, and allowlist change events.</summary>
+  <subtask>Wire the panel to `/api/audit` using React Query caching with empty and error states.</subtask>
+</task>
+<task id="T4" ac="AC1,AC2">
+  <summary>Add unit and integration coverage for API endpoint, filtering, and UI rendering, plus telemetry for audit fetch and interactions.</summary>
+  <subtask>Ensure logging hooks capture audit access and panel interactions for governance visibility.</subtask>
+</task></tasks>
+  </story>
+
+  <acceptanceCriteria><criterion id="AC1">
+  <statement>`/api/audit` returns the last 20 events with actor, action, timestamp, status, and error code (if any).</statement>
+  <source>docs/stories/4-1-audit-api-and-dashboard-panel.md#acceptance-criteria</source>
+</criterion>
+<criterion id="AC2">
+  <statement>Dashboard panel surfaces audit feed with filters for event type (sync, anonymization, allowlist change).</statement>
+  <source>docs/stories/4-1-audit-api-and-dashboard-panel.md#acceptance-criteria</source>
+</criterion>
+<criterion id="AC3">
+  <statement>Events persist in `audit_logs` collection with TTL disabled to retain through the demo.</statement>
+  <source>docs/stories/4-1-audit-api-and-dashboard-panel.md#acceptance-criteria</source>
+</criterion></acceptanceCriteria>
+
+  <artifacts>
+    <docs><doc>
+  <path>docs/epics.md</path>
+  <title>Epic D – Governance & Observability Guardrails</title>
+  <section>Story [D1]: Audit API and dashboard panel</section>
+  <snippet>Epic D1 defines the audit API and dashboard panel with acceptance criteria requiring `/api/audit` to return the last 20 events, a UI panel with filters for sync, anonymization, and allowlist changes, and persistence in `audit_logs` with TTL disabled.</snippet>
+</doc>
+<doc>
+  <path>docs/PRD.md</path>
+  <title>Product Requirements Document</title>
+  <section>FR-010 Audit Trail</section>
+  <snippet>FR-010 mandates a panel/API listing recent sync runs and anonymization toggles with actor, action, status, and timestamp; acceptance calls for managers to view the last 20 events with entries persisting during the demo.</snippet>
+</doc>
+<doc>
+  <path>docs/architecture.md</path>
+  <title>Architecture Overview</title>
+  <section>Observability & audit logging stack</section>
+  <snippet>Architecture notes use Pino structured logs flowing to App Engine stdout and Cloud Logging metrics as a no-cost pipeline that supports governance audit trails for Epics C and D.</snippet>
+</doc>
+<doc>
+  <path>docs/ux-design-specification.md</path>
+  <title>UX Design Specification</title>
+  <section>Audit cues and governance journeys</section>
+  <snippet>The design spec highlights live sync transparency, governance-friendly anonymization toggle, and an audit-trail heartbeat indicator, and describes the governance journey where managers rely on audit log entries for accountability.</snippet>
+</doc></docs>
+    <code><code>
+  <path>nyu-device-roster/src/lib/audit/syncEvents.ts</path>
+  <kind>audit-service</kind>
+  <symbol>recordAnonymizationToggleEvent</symbol>
+  <lines>1-120</lines>
+  <reason>Records audit events (allowlist, anonymization, governance exports) with route, method, userEmail, and metadata, providing the foundation for `/api/audit` responses.</reason>
+</code>
+<code>
+  <path>nyu-device-roster/src/models/SyncEvent.ts</path>
+  <kind>data-model</kind>
+  <symbol>SyncEventModel</symbol>
+  <lines>1-80</lines>
+  <reason>Defines the `sync_events` collection schema, event types, and timestamps used to persist audit trail data.</reason>
+</code>
+<code>
+  <path>nyu-device-roster/src/app/api/config/allowlist/route.ts</path>
+  <kind>api-route</kind>
+  <symbol>PUT handler</symbol>
+  <lines>1-210</lines>
+  <reason>Example governance endpoint that logs allowlist updates and emits audit records, illustrating the expected envelope and metadata for audit entries.</reason>
+</code>
+<code>
+  <path>nyu-device-roster/src/lib/logging.ts</path>
+  <kind>logging-util</kind>
+  <symbol>logAnonymizationToggle</symbol>
+  <lines>1-90</lines>
+  <reason>Pino-based logging helpers used to emit audit-visible events and request metadata alongside SyncEvent persistence.</reason>
+</code></code>
+    <dependencies><dependency ecosystem="node">
+  <package>next@16.0.1</package>
+  <notes>Next.js App Router hosting API routes and governance UI for the audit panel.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>mongoose@8.19.3</package>
+  <notes>MongoDB ODM backing `sync_events`/planned `audit_logs` collections for audit persistence.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>pino@10.1.0</package>
+  <notes>Structured logging pipeline feeding Cloud Logging for audit trail visibility.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>next-auth@4.24.13</package>
+  <notes>Authentication layer whose session metadata flows into audit events for actor attribution.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>react@19.2.0</package>
+  <notes>Front-end foundation for the dashboard audit panel and filters powered by React Query.</notes>
+</dependency></dependencies>
+  </artifacts>
+
+  <constraints><constraint>Disable TTL on the audit collection and index timestamp plus eventType to satisfy retention and query speed expectations from Dev Notes and Epic D1.</constraint>
+<constraint>Reuse the standardized API response envelope and Pino logging utilities noted in docs/architecture.md to maintain governance traceability.</constraint>
+<constraint>Honor Dev Notes prerequisites from Stories A3 and B3 for auth/session and sync event generation before exposing `/api/audit`.</constraint>
+<constraint>Meet UX targets from PRD/UX specs: WCAG AA accessible audit UI with sub-200 ms interaction and filter responsiveness.</constraint></constraints>
+  <interfaces><interface>
+  <name>SyncEventAttributes</name>
+  <kind>Mongoose schema</kind>
+  <signature>{ eventType: SyncEventType; route: string; method: string; reason?: string; requestId?: string; ip?: string; userEmail?: string | null; metadata?: Record<string, unknown>; createdAt: Date }</signature>
+  <path>nyu-device-roster/src/models/SyncEvent.ts</path>
+  <reason>Current audit event shape persisted in MongoDB; `/api/audit` should expose these fields plus error codes and filters.</reason>
+</interface>
+<interface>
+  <name>AuthFailureAuditPayload</name>
+  <kind>audit-payload</kind>
+  <signature>{ route: string; method: string; reason: string; requestId?: string; ip?: string; userEmail?: string | null }</signature>
+  <path>nyu-device-roster/src/lib/audit/syncEvents.ts</path>
+  <reason>Existing payload structure for audit entries; new events should align with these metadata fields for consistency.</reason>
+</interface>
+<interface>
+  <name>AllowlistResponse</name>
+  <kind>api-response</kind>
+  <signature>{ allowlist: string[]; diff: AllowlistDiff; metadata: { lastUpdatedAt: string; updatedBy: string } }</signature>
+  <path>nyu-device-roster/src/app/api/config/allowlist/route.ts</path>
+  <reason>Reference response envelope demonstrating metadata and audit diff handling to mirror for `/api/audit` results.</reason>
+</interface></interfaces>
+  <tests>
+    <standards>Use Vitest unit tests and integration coverage for API routes and React Query clients, with Playwright for end-to-end UI filters as outlined in the architecture testing stack.</standards>
+    <locations><location>nyu-device-roster/tests/unit</location>
+<location>nyu-device-roster/tests/integration</location>
+<location>nyu-device-roster/tests/fixtures</location></locations>
+    <ideas><idea ac="AC1">Unit-test `/api/audit` to return the last 20 events sorted by timestamp and include actor, action, status, and errorCode fields.</idea>
+<idea ac="AC2">UI integration test to verify audit panel filters (sync, anonymization, allowlist change) drive the correct API query and render empty/error states.</idea>
+<idea ac="AC3">Persistence test to confirm audit collection disables TTL and retains events across runs with indexes on timestamp and event type.</idea>
+<idea ac="AC1">Contract test ensuring audit responses reuse the standardized API envelope and include requestId/userEmail when present.</idea></ideas>
+  </tests>
+</story-context>

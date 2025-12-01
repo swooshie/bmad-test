@@ -45,25 +45,30 @@ vi.mock("@/models/Device", () => ({
 
 import type { DeviceAttributes } from "@/models/Device";
 
-const buildDevice = (overrides: Partial<DeviceAttributes>): DeviceAttributes => ({
-  deviceId: "device-001",
-  sheetId: "sheet-a",
-  assignedTo: "Alex",
-  status: "Assigned",
-  condition: "Operational",
-  offboardingStatus: null,
+const buildDevice = (overrides: Partial<DeviceAttributes>): DeviceAttributes => {
+  const baseLegacyId = overrides.legacyDeviceId ?? "device-001";
+  return {
+    serial: overrides.serial ?? baseLegacyId.toLowerCase(),
+    legacyDeviceId: baseLegacyId,
+    sheetId: "sheet-a",
+    assignedTo: "Alex",
+    status: "Assigned",
+    condition: "Operational",
+    offboardingStatus: null,
   lastSeen: new Date("2025-01-10T12:00:00Z"),
   lastSyncedAt: new Date("2025-01-10T12:00:00Z"),
   contentHash: "hash",
   createdAt: new Date("2025-01-10T12:00:00Z"),
   updatedAt: new Date("2025-01-10T12:00:00Z"),
-  ...overrides,
-});
+    ...overrides,
+  };
+};
 
-const buildRequest = (body?: Record<string, unknown>) => {
+const buildRequest = (body?: Record<string, unknown>, query = "") => {
   const headers = new Map<string, string>();
   return {
     method: "POST",
+    nextUrl: new URL(`https://example.com/api/devices/export${query}`),
     headers: {
       get: (key: string) => headers.get(key.toLowerCase()) ?? null,
     },
@@ -77,8 +82,8 @@ const buildRequest = (body?: Record<string, unknown>) => {
 describe("POST /api/devices/export", () => {
   beforeEach(() => {
     dataset = [
-      buildDevice({ deviceId: "alpha-1", offboardingStatus: "Pending Offboarding" }),
-      buildDevice({ deviceId: "alpha-2", condition: "Needs Repair" }),
+      buildDevice({ legacyDeviceId: "alpha-1", offboardingStatus: "Pending Offboarding" }),
+      buildDevice({ legacyDeviceId: "alpha-2", condition: "Needs Repair" }),
     ];
     vi.clearAllMocks();
     queryChain.sort.mockClear();
@@ -89,17 +94,17 @@ describe("POST /api/devices/export", () => {
   it("returns CSV with governance columns and logs audit events when flagged rows exist", async () => {
     const { POST } = await import("@/app/api/devices/export/route");
 
-    const response = await POST(buildRequest() as never);
+    const response = await POST(buildRequest(undefined, "?serial=alpha-1") as never);
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toContain("text/csv");
     const csv = await response.text();
     expect(csv).toContain("Governance Severity");
-    expect(csv).toContain("critical");
+    expect(csv).toContain("attention");
     expect(recordGovernanceExportEvent).toHaveBeenCalledWith(
       expect.objectContaining({
-        flaggedCount: 2,
-        totalCount: 2,
+        flaggedCount: 1,
+        totalCount: 1,
       })
     );
   });
@@ -108,9 +113,12 @@ describe("POST /api/devices/export", () => {
     const { POST } = await import("@/app/api/devices/export/route");
 
     const response = await POST(
-      buildRequest({
-        format: "pdf",
-      }) as never
+      buildRequest(
+        {
+          format: "pdf",
+        },
+        "?serial=alpha-2"
+      ) as never
     );
 
     expect(response.headers.get("Content-Type")).toBe("application/pdf");
@@ -123,9 +131,12 @@ describe("POST /api/devices/export", () => {
     const { POST } = await import("@/app/api/devices/export/route");
 
     const response = await POST(
-      buildRequest({
-        onlyFlagged: true,
-      }) as never
+      buildRequest(
+        {
+          onlyFlagged: true,
+        },
+        "?serial=alpha-3"
+      ) as never
     );
 
     expect(response.status).toBe(404);

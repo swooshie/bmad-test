@@ -21,8 +21,8 @@ const serializeMetadata = (doc: DeviceAttributes): SerializedOffboardingMetadata
 };
 
 export const GET = withSession<{ params: { deviceId: string } }>(async (_request, { params }) => {
-  const deviceId = params.deviceId;
-  if (!deviceId) {
+  const serial = params.deviceId;
+  if (!serial) {
     return NextResponse.json(
       {
         data: null,
@@ -34,14 +34,14 @@ export const GET = withSession<{ params: { deviceId: string } }>(async (_request
 
   try {
     await connectToDatabase();
-    const doc = await DeviceModel.findOne({ deviceId }).lean<DeviceAttributes>().exec();
+    const doc = await DeviceModel.findOne({ serial }).lean<DeviceAttributes>().exec();
     if (!doc) {
       return NextResponse.json(
         {
           data: null,
           error: {
             code: "DEVICE_NOT_FOUND",
-            message: `Device ${deviceId} was not found.`,
+            message: `Device ${serial} was not found.`,
           },
         },
         { status: 404 }
@@ -57,7 +57,8 @@ export const GET = withSession<{ params: { deviceId: string } }>(async (_request
       {
         data: {
           device: {
-            deviceId: doc.deviceId,
+            serial: doc.serial,
+            legacyDeviceId: doc.legacyDeviceId ?? null,
             assignedTo: doc.assignedTo,
             condition: doc.condition,
             offboardingStatus: doc.offboardingStatus ?? null,
@@ -76,7 +77,7 @@ export const GET = withSession<{ params: { deviceId: string } }>(async (_request
       {
         event: "DEVICE_DETAIL_FETCH_FAILED",
         route: "/api/devices/[deviceId]",
-        deviceId,
+        deviceId: serial,
         error:
           error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : error,
       },

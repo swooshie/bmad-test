@@ -3,6 +3,7 @@
  */
 
 import { fireEvent, render, screen } from "@testing-library/react";
+import { waitFor } from "@testing-library/react";
 
 import { ResponsiveShell } from "@/app/(manager)/components/ResponsiveShell";
 
@@ -46,6 +47,6 @@ describe("ResponsiveShell", () => {
 
     const close = screen.getByRole("button", { name: /close/i });
     fireEvent.click(close);
-    expect(auditButton).toHaveFocus();
+    return waitFor(() => expect(auditButton).toHaveFocus());
   });
 });

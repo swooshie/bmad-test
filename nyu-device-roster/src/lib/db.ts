@@ -27,6 +27,14 @@ export async function connectToDatabase(uri?: string): Promise<typeof mongoose> 
   return cachedConnection;
 }
 
+export async function closeDatabaseConnection() {
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.connection.close().catch(() => undefined);
+  }
+  cachedConnection = null;
+  global.__mongoConnectionPromise = null;
+}
+
 export function resetDatabaseConnectionForTests() {
   cachedConnection = null;
   global.__mongoConnectionPromise = null;

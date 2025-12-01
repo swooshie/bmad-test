@@ -1,0 +1,107 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>C</epicId>
+    <storyId>3.2</storyId>
+    <title>spreadsheet-grid-with-performant-sort-filter</title>
+    <status>approved</status>
+    <generatedAt>2025-11-11</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/3-2-spreadsheet-grid-with-performant-sort-filter.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As an NYU admissions manager</asA>
+    <iWant>I want a spreadsheet-style grid with performant sort/filter controls</iWant>
+    <soThat>I can answer device inventory questions in real time without leaving the dashboard</soThat>
+    <tasks><task-list>
+  <task id="T1" ac="AC1" artifact="app/(manager)/devices/hooks/useDeviceGrid.ts">Extend React Query hook to fetch `/api/devices` with pagination, sorting, and filtering inputs, returning `{ rows, meta }` for grid consumption.</task>
+  <task id="T1a" parent="T1" artifact="app/(manager)/devices/components/DeviceGrid.tsx">Introduce row virtualization (e.g., `@tanstack/react-virtual`) so scroll/render stays under 200 ms interactions.</task>
+  <task id="T2" ac="AC2" artifact="app/(manager)/devices/components/GridControls.tsx">Build column sort toggles with visual + live-region feedback, persisting state in URL query params/local storage.</task>
+  <task id="T2a" parent="T2" artifact="app/(manager)/devices/components/GridControls.tsx">Implement multi-field filtering panel and column visibility switches with optimistic UI updates.</task>
+  <task id="T3" ac="AC3" artifact="app/(manager)/devices/components/DeviceGrid.tsx">Define keyboard navigation map (arrow keys, Page Up/Down, Home/End) across virtualized rows.</task>
+  <task id="T3a" parent="T3" artifact="app/(manager)/devices/components/DeviceRow.tsx">Apply aria attributes (`role="row"`, `aria-rowindex`, `aria-sort`, labels) and ensure screen readers announce active filters/sorts.</task>
+  <task id="T4" ac="AC1-AC3" artifact="tests">Add component + integration tests covering pagination, sort/filter interactions, virtualization, and accessibility roles.</task>
+  <task id="T5" ac="AC2-AC3" artifact="docs/stories/3-2-spreadsheet-grid-with-performant-sort-filter.md">Document grid controls, keyboard map, API dependencies, and performance targets for downstream stories.</task>
+</task-list></tasks>
+  </story>
+
+  <acceptanceCriteria><criteria>
+  <criterion id="AC1">Grid consumes `/api/devices` with server-backed pagination and row virtualization so sort/filter interactions stay under 200 ms.</criterion>
+  <criterion id="AC2">Column sorting, multi-field filtering, and column-visibility toggles provide immediate feedback, persist state, and avoid page reloads.</criterion>
+  <criterion id="AC3">Keyboard navigation and screen-reader semantics (`aria-rowindex`, `aria-sort`, roles) keep the grid accessible per NYU targets.</criterion>
+</criteria></acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+  <artifact path="docs/epics.md" title="Epic C – Manager Dashboard Experience" section="Story C2">
+    Story C2 defines the spreadsheet-grade grid requirements, highlighting virtualization, fast interactions, and accessibility baselines (docs/epics.md:181-188).
+  </artifact>
+  <artifact path="docs/PRD.md" title="PRD" section="FR-007 Device Grid UI">
+    FR-007 mandates sortable/filterable grid interactions under 200 ms and outlines the expected columns plus UX polish (docs/PRD.md:41,173).
+  </artifact>
+  <artifact path="docs/PRD.md" title="PRD" section="Accessibility Requirements">
+    Accessibility guidance covers aria semantics, keyboard navigation, and screen-reader expectations for data grids (docs/PRD.md:120-178).
+  </artifact>
+  <artifact path="docs/architecture.md" title="Architecture" section="Manager Devices Feature">
+    Architecture describes the feature folder layout, React Query hooks, and `/api/devices` envelope the grid must reuse (docs/architecture.md:100-205,259).
+  </artifact>
+  <artifact path="docs/stories/3-1-authenticated-shell-with-sync-status-banner.md" title="Story 3.1" section="Dev Notes">
+    Story 3.1 establishes the authenticated shell and status banner; the grid needs to integrate with that shell’s layout and manual refresh CTA (docs/stories/3-1-authenticated-shell-with-sync-status-banner.md:1-60).
+  </artifact>
+  <artifact path="docs/stories/2-5-resilient-error-handling-and-rollback-safeguards.md" title="Story 2.5" section="Acceptance Criteria">
+    Error-handling story ensures last-known-good data and structured error codes, which the grid must respect when surfacing failures (docs/stories/2-5-resilient-error-handling-and-rollback-safeguards.md:17-35).
+  </artifact>
+</docs>
+    <code>
+  <artifact path="app/(manager)/devices/hooks/useDeviceGrid.ts" kind="hook" symbol="useDeviceGrid" lines="1-180" reason="Primary data hook providing paginated, filterable device rows to the grid."></artifact>
+  <artifact path="app/(manager)/devices/components/DeviceGrid.tsx" kind="component" symbol="DeviceGrid" lines="1-220" reason="Virtualized grid component responsible for rendering rows, keyboard navigation, and aria roles."></artifact>
+  <artifact path="app/(manager)/devices/components/GridControls.tsx" kind="component" symbol="GridControls" lines="1-200" reason="Sort, filter, and column visibility controls with persisted state."></artifact>
+  <artifact path="app/(manager)/devices/components/DeviceRow.tsx" kind="component" symbol="DeviceRow" lines="1-160" reason="Row renderer applying aria attributes and interactive affordances."></artifact>
+  <artifact path="app/api/devices/route.ts" kind="api" symbol="GET /api/devices" lines="1-220" reason="Server endpoint returning data/meta envelope for pagination/filtering."></artifact>
+  <artifact path="lib/routes.ts" kind="utility" symbol="buildDevicesQuery" lines="1-120" reason="Shared route helpers ensuring consistent query param names for sort/filter state."></artifact>
+  <artifact path="lib/storage/gridPreferences.ts" kind="utility" symbol="saveGridPreferences" lines="1-120" reason="Local storage helper persisting column visibility and filter presets."></artifact>
+  <artifact path="app/(manager)/devices/components/__tests__/DeviceGrid.test.tsx" kind="test" symbol="DeviceGrid tests" lines="1-200" reason="Unit tests validating virtualization, sort, and filter behavior."></artifact>
+  <artifact path="tests/integration/device-grid.spec.ts" kind="test" symbol="Device Grid integration" lines="1-200" reason="End-to-end test covering pagination, query param persistence, and accessibility roles."></artifact>
+</code>
+    <dependencies>
+  <ecosystem name="node">
+    <package name="next" version="16.0.1" reason="App Router runtime hosting grid components and data APIs."></package>
+    <package name="react" version="19.2.0" reason="UI library powering grid and controls."></package>
+    <package name="@tanstack/react-query" version="^5.0.0" reason="Data fetching and caching for paginated device queries."></package>
+    <package name="@tanstack/react-virtual" version="^3.0.0" reason="Row virtualization to keep scroll/render interactions under 200 ms."></package>
+    <package name="tailwindcss" version="^4.0.0" reason="Styling system enforcing NYU brand palette and responsive breakpoints."></package>
+    <package name="zod" version="^4.1.12" reason="Schema validation for `/api/devices` query params and responses."></package>
+  </ecosystem>
+</dependencies>
+  </artifacts>
+
+  <constraints>
+  <constraint>Grid must rely on `/api/devices` envelope and shared query helpers—no bespoke endpoints or response shapes.</constraint>
+  <constraint>Virtualization layer cannot break accessibility; keyboard navigation and aria semantics must function even when rows are windowed.</constraint>
+  <constraint>Sort/filter state must persist via URL query params/local storage using shared utilities so later stories reuse the same conventions.</constraint>
+  <constraint>UI interactions must remain under 200 ms; avoid blocking re-renders by batching React Query updates and debouncing filter input.</constraint>
+  <constraint>Error handling must reuse Story 2.5’s structured messaging, keeping last-known-good data visible in failure states.</constraint>
+</constraints>
+  <interfaces>
+  <interface name="useDeviceGrid" kind="hook" signature="useDeviceGrid({ page, pageSize, sort, filters }): { rows: DeviceRow[]; meta: PaginationMeta; isLoading: boolean }" >
+    <path>app/(manager)/devices/hooks/useDeviceGrid.ts</path>
+  </interface>
+  <interface name="GET /api/devices" kind="REST" signature="GET /api/devices?page=1&pageSize=25&sort=updatedAt:desc&filters=status:eq:Active → { data: DeviceRow[]; meta: { total, page, pageSize }; error: null }" >
+    <path>app/api/devices/route.ts</path>
+  </interface>
+  <interface name="GridControlsProps" kind="component" signature="GridControls({ sort, filters, onSortChange, onFilterChange, onColumnToggle })" >
+    <path>app/(manager)/devices/components/GridControls.tsx</path>
+  </interface>
+  <interface name="DeviceGridProps" kind="component" signature="DeviceGrid({ rows, columns, virtualizationConfig, onRowFocus })" >
+    <path>app/(manager)/devices/components/DeviceGrid.tsx</path>
+  </interface>
+  <interface name="GridPreferencesStore" kind="utility" signature="{ loadPreferences(): GridPrefs; savePreferences(prefs: GridPrefs): void }" >
+    <path>lib/storage/gridPreferences.ts</path>
+  </interface>
+</interfaces>
+  <tests>
+    <standards>Use React Testing Library for components/hooks, Vitest for utilities, and Playwright for end-to-end keyboard/virtualization scenarios.</standards>
+    <locations>app/(manager)/devices/components/__tests__/DeviceGrid.test.tsx; app/(manager)/devices/hooks/__tests__/useDeviceGrid.test.ts; tests/integration/device-grid.spec.ts</locations>
+    <ideas><idea ac="AC1">Mock `/api/devices` to verify pagination + virtualization keep render time under threshold.</idea><idea ac="AC2">Test sort/filter controls to ensure state persists in URL and controls update without reload.</idea><idea ac="AC3">Keyboard navigation test covering arrow keys, Page Up/Down, Home/End with aria assertions.</idea><idea ac="AC2">Filter panel test verifying multi-field filters and column visibility toggles update grid immediately.</idea><idea ac="AC3">Screen-reader simulation asserting aria attributes announce current sort + row position.</idea></ideas>
+  </tests>
+</story-context>

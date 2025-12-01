@@ -1,0 +1,115 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>B</epicId>
+    <storyId>2.3</storyId>
+    <title>Implement manual sync endpoint with optimistic status</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-11</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-3-implement-manual-sync-endpoint-with-optimistic-status.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As an NYU admissions manager</asA>
+    <iWant>I want a “Refresh Now” endpoint that immediately kicks off the Google Sheets → MongoDB ingest pipeline and broadcasts optimistic status updates</iWant>
+    <soThat>so I can narrate live data freshness during demos without waiting for the scheduled job</soThat>
+    <tasks><task-list>
+  <task id="T1" ac="AC1,AC5" artifact="app/api/sync/manual/route.ts">Implement POST /api/sync/manual handler that validates NextAuth session, enforces allowlist claims, and triggers the shared sync worker with request metadata.</task>
+  <task id="T1a" parent="T1" artifact="app/api/sync/manual/route.ts">Return an immediate JSON envelope containing task identifier, optimistic status token, rowsProcessed placeholder, and duration budget to satisfy the 5-second SLA.</task>
+  <task id="T2" ac="AC2" artifact="lib/sync-status.ts">Extend sync status broadcaster or cache helper so UI surfaces flip to “Running” within one second and reconcile to success/error on worker completion.</task>
+  <task id="T2a" parent="T2" artifact="lib/sync-status.ts">Expose hook/event emitter consumed by the status banner and governance panel for consistent optimistic updates.</task>
+  <task id="T3" ac="AC4,AC5" artifact="workers/sync/index.ts">Ensure worker invocation reuses lib/google-sheets.ts and workers/sync/transform.ts, emitting structured logs plus AppError codes inherited from Stories 2.1/2.2.</task>
+  <task id="T3a" parent="T3" artifact="lib/logging.ts">Propagate Sheets and pipeline errors into FR-012-compliant envelopes and structured logs for `/api/sync` and Cloud Monitoring visibility.</task>
+  <task id="T4" ac="AC3" artifact="models/SyncEvent.ts">Persist each manual run (actor email, anonymization state, counts, duration, status, error code) into sync_events and wire any governance view refresh.</task>
+  <task id="T5" ac="AC6" artifact="tests">Add unit/integration/contract tests covering auth gating, optimistic state transitions, audit log creation, and error propagation.</task>
+  <task id="T6" ac="AC2,AC5" artifact="docs/runbook/sync-operations.md">Document manual refresh flow, optimistic status behavior, and troubleshooting steps for demo operators.</task>
+</task-list></tasks>
+  </story>
+
+  <acceptanceCriteria><criteria>
+  <criterion id="AC1">Authenticated managers can call POST /api/sync/manual, which validates session/allowlist via NextAuth middleware and enqueues the shared sync worker so the response returns {taskId or summary, rowsProcessed, durationMs, status}.</criterion>
+  <criterion id="AC2">Endpoint sets an optimistic status entry that flips the UI banner/button to “Running” within one second, then resolves to success/error based on worker output.</criterion>
+  <criterion id="AC3">Every manual run writes a sync_events document capturing actor email, anonymization state, duration, row delta counts, and structured error code for governance dashboards.</criterion>
+  <criterion id="AC4">Manual runs reuse Stories 2.1/2.2 modules (lib/google-sheets.ts, workers/sync/transform.ts) without duplicating logic and inherit structured logging plus AppError handling.</criterion>
+  <criterion id="AC5">Endpoint enforces SLA guardrails: request returns within five seconds (fire-and-forget task acknowledgment), worker completion under 60 seconds, and clients receive actionable error codes.</criterion>
+  <criterion id="AC6">Automated tests cover authenticated/unauthenticated access, optimistic status transitions, audit log creation, and error propagation before demos.</criterion>
+</criteria></acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+  <artifact path="docs/epics.md" title="Epic B – Sync Automation" section="Story B3">
+    Story B3 defines the manager-triggered “Refresh Now” hook: POST /api/sync must reuse the fetch→transform→upsert pipeline, flip an optimistic running state, and log audit entries with actor/anonymization context before later stories build on it (docs/epics.md:120-140).
+  </artifact>
+  <artifact path="docs/PRD.md" title="PRD" section="FR-005 Manual Refresh">
+    FR-005 requires the manual refresh call to finish within ~5 seconds, update the status banner immediately, and capture an audit entry so demo operators can narrate freshness confidently (docs/PRD.md:150-175).
+  </artifact>
+  <artifact path="docs/PRD.md" title="PRD" section="FR-012 Error Handling">
+    FR-012 mandates friendly error envelopes that map Sheets/API failures into actionable codes while retaining last-known-good data, so the manual endpoint must propagate structured errors consistently (docs/PRD.md:176-190).
+  </artifact>
+  <artifact path="docs/architecture.md" title="Architecture" section="Integration Points">
+    Integration diagram places `/api/sync/manual` alongside Cloud Scheduler’s `/api/sync/run`, both feeding workers via shared logging, Secret Manager credentials, and Mongo persistence (docs/architecture.md:146-210).
+  </artifact>
+  <artifact path="docs/architecture.md" title="Architecture" section="Sync Pipeline + API Contracts">
+    Sync pipeline notes manual refresh enqueues a high-priority Cloud Task, writes `sync_events`, and must meet dispatch deadlines; the API contract table further documents request/response envelopes for `/api/sync/manual` (docs/architecture.md:240-265).
+  </artifact>
+  <artifact path="docs/runbook/sync-operations.md" title="Sync Operations Runbook" section="Manual API integration">
+    Runbook shows how `/api/sync/run` (and manual variants) reuse `loadDevicesFromSheets`, emit structured metrics, and propagate `{ status, rows, metrics }` responses, reinforcing reuse of existing helpers (docs/runbook/sync-operations.md:1-60).
+  </artifact>
+  <artifact path="docs/stories/2-2-normalize-and-upsert-devices-into-mongodb.md" title="Story 2.2" section="Implementation Alignment">
+    Story 2.2 stresses that manual triggers must call the shared transformer/upsert module, leverage `lib/logging.ts`, and persist audit output in `sync_events`, preventing duplicated business logic (docs/stories/2-2-normalize-and-upsert-devices-into-mongodb.md:1-80).
+  </artifact>
+  <artifact path="docs/stories/2-1-build-google-sheets-fetch-module.md" title="Story 2.1" section="Acceptance Criteria">
+    Story 2.1 codifies the fetch module’s Secret Manager authentication, typed return contract, and structured error codes (`SHEET_NOT_FOUND`, `RATE_LIMIT`, etc.), which the manual endpoint must consume unchanged (docs/stories/2-1-build-google-sheets-fetch-module.md:5-34).
+  </artifact>
+</docs>
+    <code>
+  <artifact path="app/api/sync/manual/route.ts" kind="api" symbol="POST /api/sync/manual" lines="1-200" reason="Manual endpoint handler validating sessions, triggering Cloud Task, and returning optimistic status envelope."></artifact>
+  <artifact path="app/api/sync/run/route.ts" kind="api" symbol="POST /api/sync/run" lines="1-180" reason="Scheduler counterpart; illustrates shared pipeline and response contract reused by manual call."></artifact>
+  <artifact path="lib/sync-status.ts" kind="utility" symbol="broadcastSyncStatus" lines="1-160" reason="Central optimistic status broker consumed by UI banners and governance panel; extend for manual trigger tokens."></artifact>
+  <artifact path="workers/sync/index.ts" kind="worker" symbol="runSyncPipeline" lines="1-220" reason="Worker orchestrator invoked by both manual and scheduled runs; enforces 60 s SLA, structured logging, and module reuse."></artifact>
+  <artifact path="workers/sync/transform.ts" kind="service" symbol="transformAndUpsertDevices" lines="1-240" reason="Shared transformer/upsert module from Story 2.2; manual endpoint must reuse for normalization and audit output."></artifact>
+  <artifact path="lib/google-sheets.ts" kind="service" symbol="fetchSheetData" lines="1-200" reason="Sheets fetcher from Story 2.1 providing typed rows, pagination, and structured error codes consumed by manual sync."></artifact>
+  <artifact path="models/SyncEvent.ts" kind="model" symbol="SyncEventModel" lines="1-160" reason="Mongoose model capturing actor, anonymization state, counts, duration, and error codes for every manual run."></artifact>
+  <artifact path="lib/logging.ts" kind="utility" symbol="logger" lines="1-140" reason="Pino logging helper ensuring manual refresh emits structured events with requestId, userEmail, and task metadata."></artifact>
+  <artifact path="workers/sync/metrics.ts" kind="utility" symbol="recordSyncMetrics" lines="1-120" reason="Metrics helper enforcing SLA tracking (duration, rows, status) referenced by manual endpoint responses."></artifact>
+  <artifact path="tests/integration/sync.spec.ts" kind="test" symbol="manual sync suite" lines="1-200" reason="Integration tests validating optimistic state transitions, audit logging, and error propagation for sync endpoints."></artifact>
+</code>
+    <dependencies>
+  <ecosystem name="node">
+    <package name="next" version="^14.2.0" reason="Next.js App Router hosting API routes `/api/sync/manual` and UI consumers of optimistic status."></package>
+    <package name="next-auth" version="^5.0.0" reason="Session validation and allowlist enforcement for the manual endpoint."></package>
+    <package name="googleapis" version="^164.1.0" reason="Google Sheets API client reused by manual sync for fetch operations."></package>
+    <package name="@google-cloud/tasks" version="^6.2.1" reason="Cloud Tasks client used to enqueue high-priority manual sync jobs with dispatch deadlines."></package>
+    <package name="mongoose" version="^8.0.0" reason="Persistence layer for `sync_events`, `devices`, and allowlist configuration touched by manual sync logic."></package>
+    <package name="pino" version="^10.1.0" reason="Structured logging pipeline for API handlers and workers, required to trace manual sync attempts."></package>
+  </ecosystem>
+</dependencies>
+  </artifacts>
+
+  <constraints>
+  <constraint>Manual endpoint must reuse shared sync pipeline (lib/google-sheets.ts → workers/sync/transform.ts) and AppError envelopes; no duplicated fetch/transform logic allowed.</constraint>
+  <constraint>All manual refresh attempts require authenticated/allowlisted manager context via NextAuth middleware and must log requestId + actor email for audit.</constraint>
+  <constraint>Responses must follow `{ data, error }` API envelope with structured error codes defined in Story 2.1/PRD FR-012, keeping SLA under 5s for acknowledgment and 60s for worker completion.</constraint>
+  <constraint>Sync status broadcasting must use the centralized lib/sync-status.ts helper and React Query optimistic updates; no ad-hoc state mutation in components.</constraint>
+  <constraint>Persist each manual run to models/SyncEvent.ts with anonymization state, counts, duration, and error metadata before marking UI banners as complete.</constraint>
+</constraints>
+  <interfaces>
+  <interface name="POST /api/sync/manual" kind="REST" signature="POST /api/sync/manual → { data: { taskId: string, optimisticToken: string, status: 'running' }, error: null }" >
+    <path>app/api/sync/manual/route.ts</path>
+  </interface>
+  <interface name="triggerManualSync" kind="function" signature="triggerManualSync({ requestId, userEmail, anonymize }): Promise<{ taskId: string; optimisticToken: string }>" >
+    <path>workers/sync/index.ts</path>
+  </interface>
+  <interface name="broadcastSyncStatus" kind="function" signature="broadcastSyncStatus({ storyKey, state, requestId, actor }): void" >
+    <path>lib/sync-status.ts</path>
+  </interface>
+  <interface name="SyncEvent" kind="model" signature="SyncEvent { actorEmail: string; anonymized: boolean; durationMs: number; rows: { added: number; updated: number; unchanged: number }; status: 'running'|'success'|'error'; errorCode?: string }" >
+    <path>models/SyncEvent.ts</path>
+  </interface>
+</interfaces>
+  <tests>
+    <standards>Follow Jest/Vitest unit conventions plus Playwright integration suites; API routes require supertest coverage while workers leverage in-memory Mongo or mocks to assert audit entries and structured error propagation.</standards>
+    <locations>tests/unit/app/api/sync/manual.test.ts; tests/integration/sync.spec.ts; tests/unit/lib/sync-status.test.ts</locations>
+    <ideas><idea ac="AC1">Simulate authenticated vs unauthenticated POST /api/sync/manual requests to ensure allowlist enforcement and immediate JSON envelope with taskId + optimistic token.</idea><idea ac="AC2">Test lib/sync-status.ts optimistic update pipeline to confirm UI banner flips to running state and reconciles on worker completion events.</idea><idea ac="AC3">Integration test verifying SyncEvent entries persist actor email, anonymization state, duration, rows, and errorCode after manual run.</idea><idea ac="AC4">Contract test ensuring manual endpoint reuses lib/google-sheets and workers/sync modules by stubbing fetch module and asserting invocation.</idea><idea ac="AC5">Latency test verifying API response completes within 5 seconds and worker completion under 60 seconds with structured error mapping (e.g., SHEET_NOT_FOUND).</idea><idea ac="AC6">Regression test covering error propagation path where worker throws AppError and API returns `{ data: null, error: { code, message } }`.</idea></ideas>
+  </tests>
+</story-context>

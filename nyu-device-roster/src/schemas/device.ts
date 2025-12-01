@@ -13,6 +13,12 @@ const optionalTrimmedString = z
   .transform((value) => (value.length ? value : undefined))
   .optional();
 
+const optionalVersionString = z
+  .string()
+  .trim()
+  .transform((value) => (value.length ? value : undefined))
+  .optional();
+
 const dateFromUnknown = z
   .any()
   .transform((value) => {
@@ -34,8 +40,14 @@ const offboardingMetadataSchema = z
   .partial()
   .optional();
 
+const dynamicAttributeValue = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+const dynamicAttributesSchema = z
+  .record(z.string().min(1), dynamicAttributeValue)
+  .optional();
+
 export const deviceDocumentSchema = z.object({
-  deviceId: trimmedString.min(1, "deviceId is required"),
+  serial: trimmedString.min(1, "serial is required"),
+  legacyDeviceId: optionalTrimmedString,
   sheetId: trimmedString.min(1, "sheetId is required"),
   assignedTo: trimmedString.default("Unassigned"),
   status: trimmedString.default("unknown"),
@@ -45,6 +57,8 @@ export const deviceDocumentSchema = z.object({
   lastTransferNotes: optionalTrimmedString,
   lastSeen: dateFromUnknown,
   lastSyncedAt: z.date(),
+  dynamicAttributes: dynamicAttributesSchema,
+  columnDefinitionsVersion: optionalVersionString,
 });
 
 export type DeviceDocumentSchema = z.infer<typeof deviceDocumentSchema>;

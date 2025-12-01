@@ -1,0 +1,96 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>C</epicId>
+    <storyId>3.3</storyId>
+    <title>Governance cues for offboarding workflows</title>
+    <status>approved</status>
+    <generatedAt>2025-11-14</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/3-3-governance-cues-for-offboarding-workflows.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As an NYU admissions manager</asA>
+    <iWant>I want devices flagged for offboarding or degraded condition highlighted with governance cues</iWant>
+    <soThat>I can plan demo handoffs and remediation without leaving the dashboard grid</soThat>
+    <tasks><task-list>
+      <task id="T1" ac="AC1" artifact="nyu-device-roster/src/app/(manager)/components/GovernanceBadge.tsx">Build row-level governance badges that display when `offboardingStatus` or condition indicates risk, reusing Story C2 grid styling.</task>
+      <task id="T1a" parent="T1" ac="AC1" artifact="nyu-device-roster/src/app/(manager)/dashboard/page.tsx">Expose filter chips for offboarding statuses/conditions so managers can isolate risky devices instantly.</task>
+      <task id="T2" ac="AC2" artifact="nyu-device-roster/src/app/(manager)/components/GovernanceBadgeTooltip.tsx">Implement tooltip/hover cards summarizing last transfer notes, actor, and timestamp pulled from Mongo metadata.</task>
+      <task id="T2a" parent="T2" ac="AC2" artifact="nyu-device-roster/src/app/api/devices/[deviceId]/route.ts">Enhance detail API route to return `offboardingMetadata` and `lastTransferNotes` for tooltip consumption.</task>
+      <task id="T3" ac="AC3" artifact="nyu-device-roster/src/app/(manager)/components/ExportControls.tsx">Extend export/download flows to include governance cue columns and trigger audit logs when flagged devices are exported.</task>
+      <task id="T3a" parent="T3" ac="AC3" artifact="nyu-device-roster/src/lib/audit/syncEvents.ts">Record structured audit entries for preset/export actions involving flagged devices (counts per status, anonymization state).</task>
+      <task id="T4" ac="AC1-AC3" artifact="docs/governance-banner-runbook.md">Document governance cues, filter usage, and export auditing so demo operators can explain signals during walkthroughs.</task>
+      <task id="T5" ac="AC1-AC3" artifact="nyu-device-roster/tests/unit/app/governance-badge.test.tsx">Add unit/component tests for badges, tooltips, filters, and export alignment plus integration tests covering `/api/devices` filtering.</task>
+    </task-list></tasks>
+  </story>
+
+  <acceptanceCriteria><criteria>
+      <criterion id="AC1">Grid rows with `offboardingStatus` or poor condition display governance badges and filter chips for rapid isolation.</criterion>
+      <criterion id="AC2">Hover/tooltip on badges summarizes last transfer notes or offboarding metadata pulled from Mongo.</criterion>
+      <criterion id="AC3">Exports/logs preserve governance cues so flagged devices remain labeled outside the UI and audit logs capture export events.</criterion>
+    </criteria></acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact path="docs/epics.md" title="Epic C – Manager Dashboard" section="Story C3">Epic C3 details governance cues, badge behavior, and dependencies on Stories B2/C2 (docs/epics.md:190-197).</artifact>
+      <artifact path="docs/PRD.md" title="PRD" section="FR-011 Governance Cues">PRD mandates visibility of `offboardingStatus`, filterability, and audit logging (docs/PRD.md:181-182).</artifact>
+      <artifact path="docs/PRD.md" title="PRD" section="FR-007 Device Grid UI">Performance + accessibility expectations for the grid/filter interactions (<200 ms, WCAG AA) (docs/PRD.md:173-190).</artifact>
+      <artifact path="docs/architecture.md" title="Architecture" section="Manager Dashboard Architecture">Architecture describes grid feature folders, React Query hooks, and logging stack leveraged by governance cues (docs/architecture.md:45-205).</artifact>
+      <artifact path="docs/runbook/sync-operations.md" title="Sync Operations Runbook" section="Normalization & Upsert Rules">Runbook confirms ingest persists `offboardingStatus` and condition metadata required for cues (docs/runbook/sync-operations.md:92-104).</artifact>
+      <artifact path="docs/stories/3-2-spreadsheet-grid-with-performant-sort-filter.md" title="Story 3.2" section="Structure Alignment">Story C2 establishes grid/pagination patterns that governance cues must reuse (docs/stories/3-2-spreadsheet-grid-with-performant-sort-filter.md:14-34).</artifact>
+      <artifact path="docs/stories/3-4-anonymization-toggle-ux-with-deterministic-placeholders.md" title="Story 3.4" section="Dev Notes">Anonymization state helpers from Story C4 must be reused so cues respect masked data (docs/stories/3-4-anonymization-toggle-ux-with-deterministic-placeholders.md:72-118).</artifact>
+    </docs>
+    <code>
+      <artifact path="nyu-device-roster/src/app/(manager)/dashboard/page.tsx" kind="page" symbol="DashboardPage" lines="1-200" reason="Hosts device grid, filter controls, and will orchestrate governance badges + filter chips."></artifact>
+      <artifact path="nyu-device-roster/src/models/Device.ts" kind="model" symbol="DeviceModel" lines="1-80" reason="Provides canonical fields (`offboardingStatus`, `condition`, `lastSeen`) badges/filter chips consume."></artifact>
+      <artifact path="nyu-device-roster/src/models/SyncEvent.ts" kind="model" symbol="SyncEventModel" lines="1-160" reason="Audit timeline/export logs rely on SyncEvent entries updated by governance actions."></artifact>
+      <artifact path="nyu-device-roster/src/lib/logging.ts" kind="utility" symbol="logger" lines="1-120" reason="Structured logging for cue triggers, exports, and audit telemetry."></artifact>
+      <artifact path="nyu-device-roster/src/lib/audit/syncEvents.ts" kind="service" symbol="recordAllowlistChangeEvent" lines="1-140" reason="Existing audit helper pattern for persisting governance events; reuse for export/filter logs."></artifact>
+      <artifact path="nyu-device-roster/src/lib/config.ts" kind="service" symbol="loadConfig" lines="1-160" reason="Configuration store surfaces governance-related metadata (flags, presets) referenced by cues."></artifact>
+      <artifact path="nyu-device-roster/src/components/SyncStatusBanner.tsx" kind="component" symbol="SyncStatusBanner" lines="1-120" reason="Reference for accessible status components sharing context with governance cues."></artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="next" version="16.0.1" reason="App Router runtime for dashboard UI and APIs serving governance data." />
+        <package name="react" version="19.2.0" reason="Component/hook system used by badges, filter chips, and tooltips." />
+        <package name="next-auth" version="^4.24.13" reason="Ensures only authenticated managers view governance cues." />
+        <package name="mongoose" version="^8.19.3" reason="Backs Device and SyncEvent collections powering cues and audit logs." />
+        <package name="@google-cloud/secret-manager" version="^6.1.1" reason="Keeps service tokens used by governance-related API routes secure." />
+        <package name="pino" version="^10.1.0" reason="Structured logging for FILTER_CUE events and exports." />
+        <package name="zod" version="^4.1.12" reason="Validates `/api/devices`/`/api/audit` payloads and filter params." />
+        <package name="vitest" version="^4.0.7" reason="Unit/component testing for badges, filters, and tooltips." />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Reuse `useDeviceGrid`/React Query caches from Story C2; cues must not introduce parallel data fetch pipelines.</constraint>
+    <constraint>All badge/filter logic must respect anonymization context from Stories C4/C6 to avoid leaking sensitive data.</constraint>
+    <constraint>Export/download flows must include governance fields and trigger audit logs whenever flagged devices are exported.</constraint>
+    <constraint>Badge/tooltip components must meet WCAG AA (color contrast, focus order, keyboard navigation).</constraint>
+    <constraint>Filtering/holo cues must keep interactions <200&nbsp;ms by leveraging cached data and virtualization.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="useDeviceGrid" kind="hook" signature="useDeviceGrid({ filters }): { rows, meta, setFilter, clearFilter }" >
+      <path>nyu-device-roster/src/app/(manager)/devices/hooks/useDeviceGrid.ts</path>
+    </interface>
+    <interface name="GET /api/devices" kind="REST" signature="GET /api/devices?filters=offboardingStatus:eq:Pending → { data: { devices, meta }, error: null }" >
+      <path>nyu-device-roster/src/app/api/devices/route.ts</path>
+    </interface>
+    <interface name="GET /api/audit" kind="REST" signature="GET /api/audit?deviceId=NYU-001 → { data: AuditEvent[]; error: null }" >
+      <path>nyu-device-roster/src/app/api/audit/route.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Use Vitest + React Testing Library for UI/state logic, Playwright for end-to-end filtering/export scenarios, and existing audit logging tests for persistence.</standards>
+    <locations>nyu-device-roster/tests/unit/app; nyu-device-roster/tests/unit/lib; nyu-device-roster/tests/integration</locations>
+    <ideas>
+      <idea ac="AC1">Component test verifying badges render and update when `offboardingStatus` changes, with filter chip interactions.</idea>
+      <idea ac="AC2">Tooltip test ensuring `/api/devices/[id]` metadata populates hover cards and handles missing notes gracefully.</idea>
+      <idea ac="AC3">Integration test exporting filtered devices asserts CSV contains governance columns and audit log entry is written.</idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -1,0 +1,109 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>3.2</storyId>
+    <title>Detect and Alert on Schema Changes</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-26T16-42-17Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/3-2-detect-and-alert-on-schema-changes.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As an operations lead</asA>
+    <iWant>I want the sync job to detect schema changes and broadcast actionable alerts</iWant>
+    <soThat>so that downstream consumers can update integrations before column drift breaks their automations.</soThat>
+    <tasks>
+      <![CDATA[
+- Task 1: Diff headers and persist schema snapshots for each run (AC1)
+  - Subtask 1.1: Extend `workers/sync/index.ts` to load the prior column registry, compute added/removed/renamed arrays, and store the latest snapshot beside `columnDefinitionsVersion`. [Tests: npm run test]
+  - Subtask 1.2: Write schema diff metadata into `sync_events` plus structured Pino logs (`event=SCHEMA_CHANGE_DETECTED`) so downstream analytics can replay changes. [Tests: npm run test]
+- Task 2: Trigger alerts and SyncStatus warnings when schema changes occur (AC2, AC3)
+  - Subtask 2.1: Update the Slack/email dispatcher to send runId, before/after column lists, and remediation links for any diff detected in a run. [Tests: manual verification]
+  - Subtask 2.2: Enhance `lib/sync-status.ts` and `/app/api/metrics/route.ts` so schema deltas set a warning state and expose the payload through SyncStatus + metrics APIs. [Tests: npm run test]
+- Task 3: Respect manual overrides and dry-run mode while logging changes (AC4)
+  - Subtask 3.1: Detect paused-sync or dry-run flags and suppress duplicate alert deliveries while still persisting schema-change records to `sync_events`. [Tests: npm run test]
+  - Subtask 3.2: Document override behavior, alert codes, and remediation steps in `docs/runbook/sync-operations.md` so operators understand alert suppression. [Tests: documentation review]
+      ]]>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <![CDATA[
+1. Every sync run diffs its header snapshot against the previous run and persists added/removed/renamed columns to `sync_events` plus Pino logs before the task completes. [Source: docs/epics.md:163-175][Source: docs/runbook/sync-operations.md:78-140]
+2. When diffs exist and automation is active, Slack/email alerts fire within the same run with runId, before/after columns, and remediation links to the runbook checklist. [Source: docs/epics.md:163-175][Source: docs/runbook/sync-operations.md:140-220]
+3. SyncStatus banner and `/api/metrics` flip to a schema-change warning state and surface the latest delta summary until a clean run clears the condition. [Source: docs/architecture.md:140-190][Source: docs/runbook/sync-operations.md:40-120]
+4. Manual overrides or dry-run mode suppress duplicate notifications but must continue logging schema diffs so operators retain a full audit trail in `sync_events`. [Source: docs/runbook/sync-operations.md:90-200]
+    ]]>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md" title="Epic 3 – Sync Observability & Guardrails" section="Story EP3.2" snippet="Story EP3.2 centers the operations lead’s demand for proactive alerts whenever sheet headers change, spelling out ACs for diff logging, Slack/email notifications, and documentation links for remediation." />
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Functional Requirements (FR-005/FR-006)" snippet="FR-005 mandates structured telemetry for sync success/failure and FR-006 requires schema-change alerting so operators keep the sheet-to-dashboard promise intact." />
+      <doc path="docs/architecture.md" title="Architecture" section="Observability & Audit Trail" snippet="Architecture keeps Pino structured logging, Cloud Logging metrics, and alert pipelines as first-class citizens, so new schema diffs must flow through those channels and attach requestId metadata." />
+      <doc path="docs/runbook/sync-operations.md" title="Sync Operations Runbook" section="Normalization & Error Codes" snippet="Runbook instructions describe header mapping, column registry persistence, status banner payloads, and the error-code table operators follow when sync runs are skipped or blocked." />
+      <doc path="docs/data-models.md" title="Data Models" section="SyncEvent collection" snippet="Defines sync_events schema fields (eventType, route, metadata, trigger/status indexes) and explains how `/api/metrics` aggregates those documents for telemetry dashboards." />
+      <doc path="docs/source-tree-analysis.md" title="Source Tree Analysis" section="Lib + Workers overview" snippet="Maps the repos where logging, sync workers, metrics APIs, and audit helpers live, guiding where schema-change instrumentation should land." />
+    </docs>
+    <code>
+      <codeArtifact path="nyu-device-roster/src/workers/sync/index.ts" kind="worker" symbol="synchronizeColumnRegistry" lines="1-140" reason="Main sync worker already builds header registries, diffs them, and writes column definitions—extend this hook to capture schema-change telemetry." />
+      <codeArtifact path="nyu-device-roster/src/workers/sync/header-map.ts" kind="utility" symbol="diffHeaderRegistry" lines="1-120" reason="Provides normalize/diff helpers for header sets; schema alerts should reuse these functions instead of re-implementing diff logic." />
+      <codeArtifact path="nyu-device-roster/src/lib/sync-status.ts" kind="state-store" symbol="markSyncSuccess/markSyncError" lines="1-160" reason="Controls SyncStatus banner states; schema warnings should populate metrics fields (`columnsAdded`, `columnsRemoved`, etc.) exposed here." />
+      <codeArtifact path="nyu-device-roster/src/app/api/metrics/route.ts" kind="api-route" symbol="aggregateSyncMetrics" lines="1-160" reason="Aggregates SyncEvent telemetry by trigger; extend the projection to include schema-change metadata that the UI can surface." />
+      <codeArtifact path="nyu-device-roster/src/app/api/sync/run/route.ts" kind="api-route" symbol="POST" lines="1-200" reason="Scheduler entrypoint validates headers, acquires locks, and records sync_events; schema detection must hook into this flow before marking runs successful." />
+      <codeArtifact path="nyu-device-roster/src/lib/logging.ts" kind="logging" symbol="logger" lines="1-160" reason="Defines Pino logger + event helpers; schema-change alerts must emit structured logs consistent with existing observability tooling." />
+      <codeArtifact path="nyu-device-roster/src/lib/audit/syncEvents.ts" kind="audit" symbol="recordAuthFailureEvent" lines="1-120" reason="Demonstrates how sync_events rows feed audit logs; reuse these helpers when persisting schema-change events for governance traceability." />
+    </code>
+    <dependencies>
+      <dependency ecosystem="node" manifest="nyu-device-roster/package.json">
+        <package name="next" version="16.0.1" />
+        <package name="mongoose" version="8.19.3" />
+        <package name="@google-cloud/secret-manager" version="6.1.1" />
+        <package name="pino" version="10.1.0" />
+        <package name="@tanstack/react-query" version="5.90.10" />
+        <package name="next-auth" version="4.24.13" />
+        <package name="zod" version="4.1.12" />
+        <package name="vitest" version="4.0.7" scope="devDependency" />
+      </dependency>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <![CDATA[
+- Keep schema-change detection inside the documented Cloud Scheduler → Cloud Tasks → `/api/sync/run` workflow; no parallel pipelines are allowed. [Source: docs/architecture.md:140-170]
+- All telemetry must log via `lib/logging.ts` and persist to `sync_events` so `/api/metrics` and audit logs stay authoritative. [Source: docs/architecture.md:150-180][Source: docs/data-models.md:27-40]
+- Use `workers/sync/header-map.ts` and the existing column registry rather than inventing new storage for header snapshots. [Source: nyu-device-roster/src/workers/sync/header-map.ts]
+- Manual override and dry-run flags documented in the runbook must short-circuit alert delivery yet still record schema diffs for compliance. [Source: docs/runbook/sync-operations.md:90-200]
+- Follow shared API envelope + status banner schema when surfacing warning states, keeping `SyncStatusState` the single source of truth for UI consumers. [Source: docs/architecture.md:160-200][Source: nyu-device-roster/src/lib/sync-status.ts]
+    ]]>
+  </constraints>
+  <interfaces>
+    <![CDATA[
+- REST POST `/api/sync/run` – Scheduler/manual entrypoint that validates tokens, runs the worker, records `SYNC_RUN` events, and should invoke schema diffing before success logging (nyu-device-roster/src/app/api/sync/run/route.ts).
+- REST GET `/api/metrics` – Aggregates `sync_events` into per-trigger stats via `aggregateSyncMetrics`; extend payloads with schema-delta metadata for banner consumers (nyu-device-roster/src/app/api/metrics/route.ts).
+- Type `SyncStatusState` – Shared contract for idle/running/success/error snapshots; add schema warning fields so UI banners react without extra API calls (nyu-device-roster/src/lib/sync-status.ts).
+- Collection `sync_events` – Mongo telemetry log storing eventType, trigger, and metadata consumed by alerts and dashboards (nyu-device-roster/src/models/SyncEvent.ts + docs/data-models.md).
+    ]]>
+  </interfaces>
+  <tests>
+    <standards>
+      <![CDATA[
+Follow the development guide’s commands: run `npm run test` (Vitest unit suite) plus `npm run test:accessibility` and `npm run smoke` to cover regression, and gate schema-alert changes with the same CI steps before merging.]]>
+    </standards>
+    <locations>
+      <![CDATA[
+- Unit specs: `nyu-device-roster/tests/unit/**/*.test.ts` (workers, lib, audit helpers)
+- Integration/e2e: `nyu-device-roster/tests/integration/**/*.test.ts`, `nyu-device-roster/tests/performance/` for telemetry smoke checks
+      ]]>
+    </locations>
+    <ideas>
+      <![CDATA[
+- AC1: Add Vitest coverage around `diffHeaderRegistry` + new persistence helpers to verify schema snapshots and SyncEvent payloads.
+- AC2: Write integration tests that stub Slack/email dispatch and assert alert payloads include runId, before/after columns, and remediation link when diffs occur.
+- AC3: Expand SyncStatus tests to prove schema warnings propagate through the store and `/api/metrics` surfaces the delta metadata.
+- AC4: Simulate paused-sync/dry-run flags in unit tests to confirm alerts are suppressed but schema-change SyncEvents still record metadata.
+      ]]>
+    </ideas>
+  </tests>
+</story-context>

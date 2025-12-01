@@ -11,7 +11,8 @@ import { AuditTimeline } from "./AuditTimeline";
 import { exportAuditSnapshot, initiateHandoff } from "../actions/deviceActions";
 
 type DeviceDetail = {
-  deviceId: string;
+  serial: string;
+  legacyDeviceId: string | null;
   assignedTo: string;
   condition: string;
   offboardingStatus: string | null;
@@ -26,8 +27,8 @@ type DeviceDetailResponse = {
   error: { code: string; message: string } | null;
 };
 
-const fetchDeviceDetail = async (deviceId: string): Promise<DeviceDetail> => {
-  const response = await fetch(API_ROUTES.deviceDetail(deviceId), {
+const fetchDeviceDetail = async (serial: string): Promise<DeviceDetail> => {
+  const response = await fetch(API_ROUTES.deviceDetail(serial), {
     method: "GET",
     headers: { Accept: "application/json" },
   });
@@ -51,7 +52,7 @@ const formatDateTime = (value: string | null | undefined) => {
 };
 
 export function DeviceDrawer({ onClose }: { onClose: () => void }) {
-  const { selectedDeviceId, isOpen } = useDeviceSelection();
+  const { selectedSerial, isOpen } = useDeviceSelection();
   const { enabled: anonymized } = useAnonymizationState();
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
@@ -66,9 +67,9 @@ export function DeviceDrawer({ onClose }: { onClose: () => void }) {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["device-detail", selectedDeviceId],
-    queryFn: () => fetchDeviceDetail(selectedDeviceId ?? ""),
-    enabled: Boolean(selectedDeviceId) && isOpen,
+    queryKey: ["device-detail", selectedSerial],
+    queryFn: () => fetchDeviceDetail(selectedSerial ?? ""),
+    enabled: Boolean(selectedSerial) && isOpen,
   });
 
   useEffect(() => {
@@ -105,7 +106,7 @@ export function DeviceDrawer({ onClose }: { onClose: () => void }) {
     return "bg-emerald-500/10";
   }, [device]);
 
-  if (!isOpen || !selectedDeviceId) {
+  if (!isOpen || !selectedSerial) {
     return null;
   }
 
@@ -130,7 +131,7 @@ export function DeviceDrawer({ onClose }: { onClose: () => void }) {
       <aside
         role="dialog"
         aria-modal="true"
-        aria-label={`Device drawer for ${selectedDeviceId}`}
+        aria-label={`Device drawer for ${selectedSerial}`}
         className="flex h-screen w-full max-w-3xl flex-col border-l border-indigo-400/30 bg-slate-900/95 p-6 shadow-2xl md:w-[66vw] lg:w-[50vw]"
       >
         <div className="flex items-start justify-between gap-4">
@@ -138,7 +139,10 @@ export function DeviceDrawer({ onClose }: { onClose: () => void }) {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-300">
               Device Drawer
             </p>
-            <h2 className="text-2xl font-semibold text-white">{selectedDeviceId}</h2>
+            <h2 className="text-2xl font-semibold text-white">{selectedSerial}</h2>
+            <p className="text-xs text-white/70">
+              Legacy Device ID: {device?.legacyDeviceId ?? "not provided"}
+            </p>
             <p className="text-sm text-white/70">
               {anonymized
                 ? "Anonymized view active"
@@ -212,7 +216,7 @@ export function DeviceDrawer({ onClose }: { onClose: () => void }) {
                 type="button"
                 ref={exportButtonRef}
                 className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-                onClick={() => void exportAuditSnapshot(selectedDeviceId)}
+                onClick={() => void exportAuditSnapshot(selectedSerial)}
               >
                 Export Audit Snapshot
               </button>
@@ -220,7 +224,7 @@ export function DeviceDrawer({ onClose }: { onClose: () => void }) {
                 type="button"
                 ref={handoffButtonRef}
                 className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-                onClick={() => void initiateHandoff(selectedDeviceId)}
+                onClick={() => void initiateHandoff(selectedSerial)}
               >
                 Initiate Handoff
               </button>
@@ -247,7 +251,7 @@ export function DeviceDrawer({ onClose }: { onClose: () => void }) {
               Refresh
             </button>
           </div>
-          <AuditTimeline deviceId={selectedDeviceId} />
+          <AuditTimeline serial={selectedSerial} />
         </div>
 
         {isFetching && (

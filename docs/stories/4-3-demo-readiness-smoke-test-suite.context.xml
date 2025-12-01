@@ -1,0 +1,169 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>3</storyId>
+    <title>demo-readiness-smoke-test-suite</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-17T16:39:22Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/4-3-demo-readiness-smoke-test-suite.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As a release manager</asA>
+    <iWant>I want a scripted smoke test validating OAuth, ingest, and UI endpoints</iWant>
+    <soThat>so that I can certify readiness before each presentation</soThat>
+    <tasks><task id="T1" ac="AC1">
+  <summary>Build smoke test script to mock login, trigger `/api/sync/manual`, fetch grid data, and toggle anonymization with runId/requestId correlation.</summary>
+  <subtask>Seed fixtures or stubs so tests run without external Secret Manager dependencies.</subtask>
+</task>
+<task id="T2" ac="AC2">
+  <summary>Emit structured pass/fail summary with timestamps and blocking issues to stdout and optional JSON artifact.</summary>
+  <subtask>Include audit log entry for smoke test invocation with operator identity.</subtask>
+</task>
+<task id="T3" ac="AC3">
+  <summary>Document local/CI execution (runtime <5 minutes) with env vars, failure triage, and CI job stub or npm script.</summary>
+  <subtask>Provide cooldown/cleanup guidance to avoid impacting datasets.</subtask>
+</task>
+<task id="T4" ac="AC1,AC2,AC3">
+  <summary>Add unit/integration coverage for smoke helpers and anonymization toggle checks; ensure cleanup and fixture reuse.</summary>
+  <subtask>Validate anonymization toggle and sync interactions do not leave residual state.</subtask>
+</task></tasks>
+  </story>
+
+  <acceptanceCriteria><criterion id="AC1">
+  <statement>Script exercises login (mock), triggers manual sync, fetches grid data, and verifies anonymization toggle.</statement>
+  <source>docs/stories/4-3-demo-readiness-smoke-test-suite.md#acceptance-criteria</source>
+</criterion>
+<criterion id="AC2">
+  <statement>Output summarises pass/fail with timestamps and highlights blocking issues.</statement>
+  <source>docs/stories/4-3-demo-readiness-smoke-test-suite.md#acceptance-criteria</source>
+</criterion>
+<criterion id="AC3">
+  <statement>Document how to run the script locally and via CI (optional) with expected runtime &lt; 5 minutes.</statement>
+  <source>docs/stories/4-3-demo-readiness-smoke-test-suite.md#acceptance-criteria</source>
+</criterion></acceptanceCriteria>
+
+  <artifacts>
+    <docs><doc>
+  <path>docs/epics.md</path>
+  <title>Epic D – Governance & Observability Guardrails</title>
+  <section>Story [D3]: Demo readiness smoke test suite</section>
+  <snippet>Epic D3 defines the smoke test covering login, manual sync, grid fetch, anonymization toggle, and reporting under 5 minutes.</snippet>
+</doc>
+<doc>
+  <path>docs/PRD.md</path>
+  <title>Product Requirements Document</title>
+  <section>FR-010 Audit Trail</section>
+  <snippet>FR-010 expects audit-ready evidence of sync runs and anonymization toggles; smoke test should log these with actor and timestamps.</snippet>
+</doc>
+<doc>
+  <path>docs/architecture.md</path>
+  <title>Architecture Overview</title>
+  <section>API Contracts</section>
+  <snippet>API contracts enumerate `/api/sync/manual`, anonymize routes, and response envelopes the smoke script must exercise.</snippet>
+</doc>
+<doc>
+  <path>docs/architecture.md</path>
+  <title>Architecture Overview</title>
+  <section>Testing Layout</section>
+  <snippet>Testing layout prescribes Vitest co-located unit tests and integration suites under tests/integration with fixtures.</snippet>
+</doc>
+<doc>
+  <path>docs/architecture.md</path>
+  <title>Architecture Overview</title>
+  <section>Performance Considerations</section>
+  <snippet>Performance guidance stresses keeping runtimes short and efficient, useful for the sub-5-minute smoke test target.</snippet>
+</doc>
+<doc>
+  <path>stories/4-2-telemetry-and-sync-health-summaries.md</path>
+  <title>Story 4.2: telemetry-and-sync-health-summaries</title>
+  <section>Learnings and telemetry patterns</section>
+  <snippet>Provides telemetry logging patterns and requestId correlation to reuse in smoke test reporting.</snippet>
+</doc></docs>
+    <code><code>
+  <path>nyu-device-roster/src/app/api/sync/manual/route.ts</path>
+  <kind>api-route</kind>
+  <symbol>POST /api/sync/manual</symbol>
+  <lines>1-200</lines>
+  <reason>Manual sync endpoint the smoke test must trigger and observe.</reason>
+</code>
+<code>
+  <path>nyu-device-roster/src/app/api/devices/anonymize/route.ts</path>
+  <kind>api-route</kind>
+  <symbol>POST /api/devices/anonymize</symbol>
+  <lines>1-120</lines>
+  <reason>Endpoint to toggle anonymization as required by AC1.</reason>
+</code>
+<code>
+  <path>nyu-device-roster/src/app/api/metrics/route.ts</path>
+  <kind>api-route</kind>
+  <symbol>POST /api/metrics</symbol>
+  <lines>1-90</lines>
+  <reason>Metrics ingestion/logging used for telemetry and potential smoke test reporting.</reason>
+</code>
+<code>
+  <path>nyu-device-roster/src/lib/logging.ts</path>
+  <kind>logging-util</kind>
+  <symbol>logPerformanceMetric</symbol>
+  <lines>1-120</lines>
+  <reason>Logging utility for performance metrics and audit entries the smoke script should reuse.</reason>
+</code></code>
+    <dependencies><dependency ecosystem="node">
+  <package>next@16.0.1</package>
+  <notes>Next.js App Router hosting sync, metrics, and anonymization endpoints.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>mongoose@8.19.3</package>
+  <notes>MongoDB ODM backing sync event data used during smoke tests.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>pino@10.1.0</package>
+  <notes>Structured logging for audit traces of smoke test steps.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>next-auth@4.24.13</package>
+  <notes>Authentication layer; smoke test should respect allowlist/auth requirements.</notes>
+</dependency>
+<dependency ecosystem="node">
+  <package>react@19.2.0</package>
+  <notes>Frontend components involved when validating UI endpoints.</notes>
+</dependency></dependencies>
+  </artifacts>
+
+  <constraints><constraint>Reuse standardized API envelope and audit logging; emit requestId/userEmail for smoke actions.</constraint>
+<constraint>Keep smoke runtime under 5 minutes using fixtures/mocks; avoid external Secret Manager dependencies.</constraint>
+<constraint>Enforce authentication/allowlist checks on tested endpoints to align with PRD and governance.</constraint>
+<constraint>Include cleanup/cooldown steps so smoke runs do not alter production-like datasets.</constraint></constraints>
+  <interfaces><interface>
+  <name>POST /api/sync/manual</name>
+  <kind>API route</kind>
+  <signature>POST { reason } → { data: { counts, duration }, error: null }</signature>
+  <path>nyu-device-roster/src/app/api/sync/manual/route.ts</path>
+  <reason>Manual sync contract exercised by the smoke script.</reason>
+</interface>
+<interface>
+  <name>POST /api/devices/anonymize</name>
+  <kind>API route</kind>
+  <signature>POST { enabled: boolean } → { data: { anonymizationState }, error: null }</signature>
+  <path>nyu-device-roster/src/app/api/devices/anonymize/route.ts</path>
+  <reason>Anonymization toggle contract required by AC1.</reason>
+</interface>
+<interface>
+  <name>POST /api/metrics</name>
+  <kind>API route</kind>
+  <signature>POST { metrics: [{ metric, value, threshold?, context?, requestId?, anonymized?, timestamp? }], requestId?, anonymized? }</signature>
+  <path>nyu-device-roster/src/app/api/metrics/route.ts</path>
+  <reason>Metrics ingestion interface to log performance data during smoke runs.</reason>
+</interface></interfaces>
+  <tests>
+    <standards>Use Vitest for unit tests and integration tests for smoke harness; consider Playwright for end-to-end UI verification.</standards>
+    <locations><location>nyu-device-roster/tests/unit</location>
+<location>nyu-device-roster/tests/integration</location>
+<location>nyu-device-roster/tests/fixtures</location></locations>
+    <ideas><idea ac="AC1">Integration test covering mocked login, manual sync trigger, grid fetch, and anonymization toggle with audit entries.</idea>
+<idea ac="AC2">Unit test reporting utility to ensure timestamps, counts, and blocking issues are emitted and logged.</idea>
+<idea ac="AC3">Doc test ensuring CI/local instructions include env vars, runtime target, and failure triage steps.</idea>
+<idea ac="AC1">Cleanup test to verify smoke run resets any data mutations or uses isolated fixtures.</idea></ideas>
+  </tests>
+</story-context>

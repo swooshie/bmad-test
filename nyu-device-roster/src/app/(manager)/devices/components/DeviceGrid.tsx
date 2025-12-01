@@ -5,11 +5,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DeviceGridDevice, DeviceGridMeta } from "@/app/api/devices/device-query-service";
 import type { DeviceColumn, DeviceColumnId } from "../types";
 import type { DeviceGridQueryState } from "@/lib/devices/grid-query";
+import type { DeviceFilterChip } from "../utils/filter-chips";
 
 import { clampIndex, calculateVirtualWindow } from "../utils/virtual-window";
 import { DeviceRow } from "./DeviceRow";
 
-const ROW_HEIGHT = 56;
+export type DeviceGridDensity = "comfortable" | "compact";
 
 type DeviceGridProps = {
   rows: DeviceGridDevice[];
@@ -20,10 +21,14 @@ type DeviceGridProps = {
   state: DeviceGridQueryState;
   onRetry: () => void;
   onSort: (columnId: DeviceColumnId) => void;
-  selectedDeviceId?: string | null;
+  density: DeviceGridDensity;
+  selectedSerial?: string | null;
   onSelectRow?: (row: DeviceGridDevice, element: HTMLDivElement | null) => void;
   highlightedIds?: Set<string>;
   onVirtualizationFallback?: (context: { rowsRendered: number; total?: number | null }) => void;
+  filterChips?: DeviceFilterChip[];
+  onResetFilters?: () => void;
+  onConnectSheet?: () => void;
 };
 
 const sortLabel = (column: DeviceColumn, state: DeviceGridQueryState) => {
@@ -42,10 +47,14 @@ export const DeviceGrid = ({
   state,
   onRetry,
   onSort,
-  selectedDeviceId,
+  density,
+  selectedSerial,
   onSelectRow,
   highlightedIds,
   onVirtualizationFallback,
+  filterChips,
+  onResetFilters,
+  onConnectSheet,
 }: DeviceGridProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -72,20 +81,31 @@ export const DeviceGrid = ({
   useEffect(() => {
     setFocusedIndex(0);
     setScrollTop(0);
-    containerRef.current?.scrollTo({ top: 0 });
-  }, [rows]);
+    if (typeof containerRef.current?.scrollTo === "function") {
+      containerRef.current.scrollTo({ top: 0 });
+    }
+  }, [rows.length, density]);
 
   const totalRows = rows.length;
+  const rowHeight = density === "compact" ? 44 : 56;
+  const gridTemplateColumns = useMemo(
+    () => columns.map((column) => `minmax(${column.minWidth ?? 140}px, max-content)`).join(" "),
+    [columns]
+  );
+  const gridMinWidth = useMemo(
+    () => columns.reduce((total, column) => total + (column.minWidth ?? 140), 0),
+    [columns]
+  );
   const virtualWindow = useMemo(
     () =>
       calculateVirtualWindow({
         total: totalRows,
-        rowHeight: ROW_HEIGHT,
+        rowHeight,
         viewportHeight,
         scrollTop,
         overscan: 6,
       }),
-    [scrollTop, totalRows, viewportHeight]
+    [rowHeight, scrollTop, totalRows, viewportHeight]
   );
 
   const visibleRows = rows.slice(virtualWindow.startIndex, virtualWindow.endIndex);
@@ -110,14 +130,14 @@ export const DeviceGrid = ({
     if (!container) {
       return;
     }
-    const top = rowIndex * ROW_HEIGHT;
-    const bottom = top + ROW_HEIGHT;
+    const top = rowIndex * rowHeight;
+    const bottom = top + rowHeight;
     if (top < container.scrollTop) {
       container.scrollTop = top;
     } else if (bottom > container.scrollTop + container.clientHeight) {
       container.scrollTop = bottom - container.clientHeight;
     }
-  }, []);
+  }, [rowHeight]);
 
   const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     setScrollTop(event.currentTarget.scrollTop);
@@ -131,7 +151,7 @@ export const DeviceGrid = ({
       const container = containerRef.current;
       const viewportRows = Math.max(
         1,
-        Math.floor((container ? container.clientHeight : ROW_HEIGHT) / ROW_HEIGHT)
+        Math.floor((container ? container.clientHeight : rowHeight) / rowHeight)
       );
       let nextIndex = focusedIndex;
       if (event.key === "ArrowDown") {
@@ -155,10 +175,6 @@ export const DeviceGrid = ({
     },
     [ensureVisible, focusedIndex, totalRows]
   );
-
-  const gridTemplateColumns = columns
-    .map((column) => `minmax(${column.minWidth ?? 140}px, 1fr)`)
-    .join(" ");
 
   return (
     <div className="rounded-2xl border border-white/10 bg-slate-900/60 shadow-xl">
@@ -185,11 +201,11 @@ export const DeviceGrid = ({
       >
         <div role="rowgroup">
           <div
-            role="row"
-            className="sticky top-0 z-10 grid border-b border-white/10 bg-slate-950/80 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-white/80"
-            style={{ gridTemplateColumns }}
-          >
-            {columns.map((column) => (
+          role="row"
+          className="sticky top-0 z-10 grid border-b border-white/10 bg-slate-950/80 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-white/80"
+          style={{ gridTemplateColumns, minWidth: `${gridMinWidth}px` }}
+        >
+          {columns.map((column) => (
               <button
                 key={column.id}
                 type="button"
@@ -206,7 +222,7 @@ export const DeviceGrid = ({
             ))}
           </div>
         </div>
-        <div role="rowgroup" style={{ height: totalRows * ROW_HEIGHT, position: "relative" }}>
+        <div role="rowgroup" style={{ height: totalRows * rowHeight, position: "relative" }}>
           <div
             style={{
               transform: `translateY(${virtualWindow.offsetTop}px)`,
@@ -214,29 +230,74 @@ export const DeviceGrid = ({
           >
             {visibleRows.map((row, index) => {
               const absoluteIndex = virtualWindow.startIndex + index;
-              const isHighlighted = highlightedIds?.has(row.deviceId) ?? false;
+              const isHighlighted = highlightedIds?.has(row.serial) ?? false;
               return (
                 <DeviceRow
-                  key={`${row.deviceId}-${absoluteIndex}`}
+                  key={`${row.serial}-${absoluteIndex}`}
                   row={row}
                   columns={columns}
                   virtualIndex={absoluteIndex}
                   rowNumber={rowOffset + absoluteIndex + 1}
                   isFocused={focusedIndex === absoluteIndex}
                   onFocus={() => setFocusedIndex(absoluteIndex)}
-                  isSelected={selectedDeviceId === row.deviceId}
+                  isSelected={selectedSerial === row.serial}
                   onSelect={onSelectRow}
                   isHighlighted={isHighlighted}
+                  rowHeight={rowHeight}
+                  gridTemplateColumns={gridTemplateColumns}
+                  gridMinWidth={gridMinWidth}
                 />
               );
             })}
           </div>
         </div>
-        {!rows.length && !isLoading && (
-          <div className="px-6 py-10 text-center text-sm text-white/70">
-            No devices match the current filters. Adjust filters or clear them to see more results.
+        {!rows.length && !isLoading ? (
+          <div className="px-6 py-10 text-center text-sm text-white/70" role="alert" aria-live="polite">
+            {meta?.total === 0 && !(filterChips?.length ?? 0) ? (
+              <div className="mx-auto max-w-xl space-y-3">
+                <div className="text-4xl" aria-hidden="true">
+                  🗂️
+                </div>
+                <p className="text-lg font-semibold text-white">Ready for first sync</p>
+                <p className="text-sm text-white/80">
+                  Connect the Google Sheet to hydrate the roster, then trigger a manual refresh to meet the 60-second freshness expectation.
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
+                  <a
+                    href="https://docs.google.com/spreadsheets/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-full border border-white/30 px-4 py-2 font-semibold text-white transition hover:border-white/60 hover:bg-white/10"
+                  >
+                    Connect Google Sheet
+                  </a>
+                  <button
+                    type="button"
+                    onClick={onConnectSheet}
+                    className="rounded-full bg-white px-4 py-2 font-semibold text-slate-900 transition hover:bg-slate-100"
+                  >
+                    Trigger manual refresh
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mx-auto max-w-xl space-y-3">
+                <p className="text-lg font-semibold text-white">No matching results</p>
+                <p className="text-sm text-white/80">
+                  Active filters: {filterChips?.length ? filterChips.map((chip) => chip.label).join(", ") : "None"}.
+                  Reset filters to broaden the grid.
+                </p>
+                <button
+                  type="button"
+                  onClick={onResetFilters}
+                  className="rounded-full border border-white/30 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:border-white/60 hover:bg-white/10"
+                >
+                  Reset filters
+                </button>
+              </div>
+            )}
           </div>
-        )}
+        ) : null}
       </div>
       {error && (
         <div className="border-t border-white/10 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">

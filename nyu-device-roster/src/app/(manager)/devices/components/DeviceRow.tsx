@@ -22,13 +22,15 @@ const formatDate = (value: string | null) => {
 
 const resolveCellValue = (row: DeviceGridDevice, columnId: DeviceColumn["id"]) => {
   switch (columnId) {
-    case "deviceId":
+    case "serial":
       return (
         <div className="flex items-center gap-2">
-          <span>{row.deviceId}</span>
-          <GovernanceBadge deviceId={row.deviceId} cue={row.governanceCue} />
+          <span>{row.serial}</span>
+          <GovernanceBadge serial={row.serial} cue={row.governanceCue} />
         </div>
       );
+    case "legacyDeviceId":
+      return row.legacyDeviceId ?? "—";
     case "assignedTo":
       return row.assignedTo;
     case "status":
@@ -61,8 +63,19 @@ const resolveCellValue = (row: DeviceGridDevice, columnId: DeviceColumn["id"]) =
       return formatDate(row.lastSyncedAt);
     case "sheetId":
       return row.sheetId;
-    default:
-      return "";
+    default: {
+      const dynamicValue = row.dynamicAttributes?.[columnId];
+      if (dynamicValue === undefined || dynamicValue === null) {
+        return "—";
+      }
+      if (typeof dynamicValue === "number") {
+        return dynamicValue.toString();
+      }
+      if (typeof dynamicValue === "boolean") {
+        return dynamicValue ? "Yes" : "No";
+      }
+      return String(dynamicValue);
+    }
   }
 };
 
@@ -76,6 +89,9 @@ type DeviceRowProps = {
   isSelected?: boolean;
   onSelect?: (row: DeviceGridDevice, element: HTMLDivElement | null) => void;
   isHighlighted?: boolean;
+  rowHeight: number;
+  gridTemplateColumns: string;
+  gridMinWidth: number;
 };
 
 export const DeviceRow = ({
@@ -88,6 +104,9 @@ export const DeviceRow = ({
   isSelected,
   onSelect,
   isHighlighted,
+  rowHeight,
+  gridTemplateColumns,
+  gridMinWidth,
 }: DeviceRowProps) => {
   const rowRef = useRef<HTMLDivElement | null>(null);
   const severityAccent =
@@ -107,10 +126,9 @@ export const DeviceRow = ({
         isSelected ? "bg-indigo-500/10 ring-1 ring-indigo-400/50" : virtualIndex % 2 === 0 ? "bg-white/5" : "bg-transparent"
       } ${haloClass}`}
       style={{
-        minHeight: 56,
-        gridTemplateColumns: columns
-          .map((column) => `minmax(${column.minWidth ?? 140}px, 1fr)`)
-          .join(" "),
+        minHeight: rowHeight,
+        gridTemplateColumns,
+        minWidth: `${gridMinWidth}px`,
       }}
       tabIndex={isFocused ? 0 : -1}
       aria-rowindex={rowNumber}

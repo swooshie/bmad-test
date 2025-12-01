@@ -1,0 +1,41 @@
+{
+  "devices": [
+    {
+      "deviceId": "snapshot-001",
+      "sheetId": "snapshot-sheet",
+      "assignedTo": "Demo User",
+      "status": "Active",
+      "condition": "Good",
+      "offboardingStatus": null,
+      "lastSyncedAt": "2025-01-01T00:00:00.000Z",
+      "contentHash": "hash-001"
+    }
+  ],
+  "config": [
+    {
+      "collectionName": "default",
+      "allowlist": ["demo@example.com"],
+      "devicesSheetId": "snapshot-sheet",
+      "lastUpdatedAt": "2025-01-01T00:00:00.000Z",
+      "updatedBy": "ops@example.com",
+      "sync": {
+        "enabled": true,
+        "intervalMinutes": 2,
+        "timezone": "Etc/UTC"
+      }
+    }
+  ],
+  "audit_logs": [
+    {
+      "eventType": "governance",
+      "action": "SNAPSHOT_BASELINE_SEEDED",
+      "actor": "ops@example.com",
+      "status": "success",
+      "context": {
+        "snapshot": "baseline",
+        "reset": true
+      },
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    }
+  ]
+}

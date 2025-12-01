@@ -4,8 +4,8 @@ export const ANONYMIZATION_COOKIE = "nyu-device-roster-anonymized";
 
 const PLACEHOLDER_PREFIX = "Anon";
 
-const hashSeed = (deviceId: string, field: string) => {
-  const input = `${deviceId}:${field}`;
+const hashSeed = (serial: string, field: string) => {
+  const input = `${serial}:${field}`;
   let hash = 2166136261;
   for (let i = 0; i < input.length; i += 1) {
     hash ^= input.charCodeAt(i);
@@ -14,14 +14,14 @@ const hashSeed = (deviceId: string, field: string) => {
   return (hash >>> 0).toString(16).padStart(8, "0");
 };
 
-const buildPlaceholder = (deviceId: string, field: string) =>
-  `${PLACEHOLDER_PREFIX}-${hashSeed(deviceId, field).slice(0, 6).toUpperCase()}`;
+const buildPlaceholder = (serial: string, field: string) =>
+  `${PLACEHOLDER_PREFIX}-${hashSeed(serial, field).slice(0, 6).toUpperCase()}`;
 
-const maskValue = (deviceId: string, field: string, value: string | null | undefined) => {
+const maskValue = (serial: string, field: string, value: string | null | undefined) => {
   if (!value) {
     return null;
   }
-  return buildPlaceholder(deviceId, field);
+  return buildPlaceholder(serial, field);
 };
 
 export const anonymizeDeviceRow = (
@@ -32,12 +32,30 @@ export const anonymizeDeviceRow = (
     return device;
   }
 
+  const anonymizedDynamic = device.dynamicAttributes
+    ? Object.fromEntries(
+        Object.entries(device.dynamicAttributes).map(([key, value]) => {
+          if (value === null || value === undefined) {
+            return [key, null];
+          }
+          if (typeof value === "number") {
+            return [key, value];
+          }
+          if (typeof value === "boolean") {
+            return [key, value];
+          }
+          return [key, maskValue(device.serial, key, String(value)) ?? null];
+        })
+      )
+    : undefined;
+
   return {
     ...device,
-    assignedTo: maskValue(device.deviceId, "assignedTo", device.assignedTo) ?? "—",
-    sheetId: maskValue(device.deviceId, "sheetId", device.sheetId) ?? "—",
+    assignedTo: maskValue(device.serial, "assignedTo", device.assignedTo) ?? "—",
+    sheetId: maskValue(device.serial, "sheetId", device.sheetId) ?? "—",
     lastTransferNotes:
-      maskValue(device.deviceId, "lastTransferNotes", device.lastTransferNotes ?? null) ?? null,
+      maskValue(device.serial, "lastTransferNotes", device.lastTransferNotes ?? null) ?? null,
+    dynamicAttributes: anonymizedDynamic,
   };
 };
 

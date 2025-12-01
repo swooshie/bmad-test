@@ -1,0 +1,87 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>3</storyId>
+    <title>Render Dynamic Columns in Dashboard UI</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-25T16:12:10Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-3-render-dynamic-columns-in-dashboard-ui.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>operations user</asA>
+    <iWant>the devices table to display whatever columns currently exist in MongoDB</iWant>
+    <soThat>the dashboard always feels like a real-time mirror of the sheet</soThat>
+    <tasks>
+      <task id="T1" ref="AC1">
+        <title>Emit registry-backed column metadata from `/api/devices`</title>
+        <details>Ensure API responses expose the `columns` array with order, labels, registry keys, anonymization flags, and version stamps without breaking existing consumers.</details>
+        <subtask id="T1.1" ref="AC1">Update DTO/Zod schemas and response envelope tests to cover the `columns` objects returned by the API.</subtask>
+        <subtask id="T1.2" ref="AC4">Instrument telemetry so `columnsVersion` + schema diff events flow into SyncStatus and observability dashboards.</subtask>
+      </task>
+      <task id="T2" ref="AC2">
+        <title>Render dynamic columns in the React grid</title>
+        <details>Teach `(manager)/devices` hooks and components to map over server-provided column definitions for layout, filters, personalization, and anonymization.</details>
+        <subtask id="T2.1" ref="AC2">Refactor grid column factory + chips to read definitions dynamically and keep search/sort bound to registry keys.</subtask>
+        <subtask id="T2.2" ref="AC2">Honor anonymization presets by masking fields flagged in column metadata and keeping governance cues consistent.</subtask>
+      </task>
+      <task id="T3" ref="AC3">
+        <title>Ensure responsive performance for 100-column layouts</title>
+        <details>Implement virtualization, sticky headers, and horizontal scroll guidance from the UX spec so dense grids remain navigable within latency targets.</details>
+        <subtask id="T3.1" ref="AC3">Introduce virtualization or horizontal scroll enhancements and verify ≤200 ms transitions via Playwright/perf checks.</subtask>
+        <subtask id="T3.2" ref="AC3">Document density + scroll defaults in Dev Notes and align CSS tokens with design direction.</subtask>
+      </task>
+      <task id="T4" ref="AC4">
+        <title>Surface column-version updates in SyncStatus + audit logs</title>
+        <details>Update SyncStatus banner, audit logging, and smoke checks so managers get prompts when schema changes occur.</details>
+        <subtask id="T4.1" ref="AC4">Emit `SYNC_COLUMNS_CHANGED` events and banner prompts referencing the new context file.</subtask>
+        <subtask id="T4.2" ref="AC4">Extend smoke tests to confirm telemetry fields and audit entries populate after a schema update.</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria><criterion id="AC1">`/api/devices` (and `/api/devices/columns`) responses include a registry-backed `columns` array describing order, label, key, data type, anonymization flags, and version metadata.</criterion>
+<criterion id="AC2">`(manager)/devices` React grid renders required and dynamic columns from the metadata, preserving personalization, filters, and anonymization behavior.</criterion>
+<criterion id="AC3">Grid interactions handle 5/20/100-column scenarios with virtualization, sticky headers, and horizontal scroll so latency stays ≤200 ms without clipping.</criterion>
+<criterion id="AC4">Sync telemetry and SyncStatus banner surface `columnsVersion` updates and `SYNC_COLUMNS_CHANGED` events so managers know when schema changes require refresh.</criterion></acceptanceCriteria>
+
+  <artifacts>
+    <docs><doc path="docs/PRD.md" title="PRD" section="FR-004" snippet="FR-004 guarantees the dashboard mirrors MongoDB columns, anchoring the feature's business outcome." />
+<doc path="docs/epics.md" title="Epics" section="Epic 2 EP2.3" snippet="Story EP2.3 defines the user narrative, acceptance criteria, and prerequisites for rendering dynamic columns." />
+<doc path="docs/tech-spec-epic-2.md" title="Tech Spec" section="APIs & UI" snippet="Spec documents updates to `/api/devices`, `/api/devices/columns`, and the React grid virtualization requirements." />
+<doc path="docs/architecture.md" title="Architecture" section="Project Structure" snippet="Architecture outlines App Router layout, React Query, structured logging, and `{ data, meta, error }` envelopes." />
+<doc path="docs/ux-design-specification.md" title="UX Spec" section="Data Grid" snippet="UX spec mandates 200 ms interactions, GitLab-style chips, density controls, and horizontal scroll guidance for 100-column scenarios." />
+<doc path="docs/data-models.md" title="Data Models" section="Device Collection" snippet="Data models define `dynamicAttributes` and column registry expectations the UI must respect." />
+<doc path="docs/runbook/sync-operations.md" title="Sync Runbook" section="Telemetry" snippet="Runbook describes `SYNC_COLUMNS_CHANGED` events, SyncStatus banner messaging, and smoke checks when columns change." />
+<doc path="docs/development-guide.md" title="Development Guide" section="Testing Workflow" snippet="Guide prescribes Vitest, Playwright axe/Lighthouse, and smoke scripts for validation before marking drafted." />
+<doc path="docs/source-tree-analysis.md" title="Source Tree" section="Manager Feature" snippet="Tree map highlights `(manager)/devices`, SyncStatus components, and API routes touched by this story." /></docs>
+    <code><artifact path="nyu-device-roster/src/app/api/devices/route.ts" kind="API Route" symbol="GET/POST /api/devices" lines="1-200" reason="Main endpoint returning devices + columns metadata." />
+<artifact path="nyu-device-roster/src/app/api/devices/columns/route.ts" kind="API Route" symbol="GET /api/devices/columns" lines="1-140" reason="Lightweight endpoint for column registry used by the grid." />
+<artifact path="nyu-device-roster/src/lib/devices/grid-query.ts" kind="Service" symbol="buildDeviceQuery" lines="1-200" reason="Query builder must handle dynamic fields and filters." />
+<artifact path="nyu-device-roster/src/app/(manager)/devices/components/DeviceGrid.tsx" kind="Component" symbol="DeviceGrid" lines="1-220" reason="Grid renderer iterates columns and needs virtualization." />
+<artifact path="nyu-device-roster/src/app/(manager)/devices/hooks/useDeviceGrid.ts" kind="Hook" symbol="useDeviceGrid" lines="1-200" reason="Hook fetches columns and manages personalization state." />
+<artifact path="nyu-device-roster/src/components/SyncStatusBanner.tsx" kind="Component" symbol="SyncStatusBanner" lines="1-160" reason="Banner surfaces column-change prompts (AC4)." />
+<artifact path="nyu-device-roster/src/lib/sync-status.ts" kind="Library" symbol="getSyncStatus" lines="1-160" reason="Computes status payload consumed by SyncStatus banner." />
+<artifact path="nyu-device-roster/src/models/SyncEvent.ts" kind="Model" symbol="SyncEvent" lines="1-120" reason="Telemetry schema storing `columnsVersion` diffs." /></code>
+    <dependencies><ecosystem name="node"><package name="next" version="16.0.1" /><package name="react" version="19.2.0" /><package name="@tanstack/react-query" version="5.90.10" /><package name="mongoose" version="8.19.3" /><package name="next-auth" version="4.24.13" /><package name="pino" version="10.1.0" /><package name="zod" version="4.1.12" /></ecosystem></dependencies>
+  </artifacts>
+
+  <constraints><constraint>Maintain `{ data, meta, error }` API envelope and App Router conventions per docs/architecture.md.</constraint>
+<constraint>All UI work stays within `(manager)/devices`, SyncStatus components, and documented libs per source-tree analysis.</constraint>
+<constraint>React Query remains the data layer; anonymization behavior must persist per UX + Dev Notes.</constraint>
+<constraint>Telemetry must emit `SYNC_COLUMNS_CHANGED` and `columnsVersion` per sync runbook.</constraint>
+<constraint>Grid interactions must hit 200 ms targets using virtualization and scroll guidance from UX spec.</constraint></constraints>
+  <interfaces><interface name="GET /api/devices" kind="REST" signature="GET /api/devices?search=&page=&pageSize=&columnsOnly" path="nyu-device-roster/src/app/api/devices/route.ts" />
+<interface name="GET /api/devices/columns" kind="REST" signature="GET /api/devices/columns" path="nyu-device-roster/src/app/api/devices/columns/route.ts" />
+<interface name="useSyncStatus" kind="React Hook" signature="useSyncStatus()`" path="nyu-device-roster/src/lib/use-sync-status.ts" />
+<interface name="SyncEvent" kind="Model" signature="SyncEvent { metadata.columnsVersion, columnsAdded[], columnsRemoved[] }" path="nyu-device-roster/src/models/SyncEvent.ts" /></interfaces>
+  <tests>
+    <standards>Follow docs/development-guide.md: run `npm run test`, `npm run test:accessibility`, and `npm run smoke`.</standards>
+    <locations>`nyu-device-roster/tests/unit/app/(manager)/devices`, `nyu-device-roster/tests/unit/app/api/devices`, `nyu-device-roster/tests/integration/accessibility.spec.ts`, `nyu-device-roster/scripts/smoke.ts`.</locations>
+    <ideas><idea ref="AC1">Serializer test ensuring `/api/devices` includes column metadata with anonymization flags.</idea>
+  <idea ref="AC2">Component test verifying DeviceGrid re-renders when column definitions change and filters persist.</idea>
+  <idea ref="AC3">Playwright run with 100 columns to confirm virtualization/sticky headers stay performant.</idea>
+  <idea ref="AC4">Smoke test that emitting `SYNC_COLUMNS_CHANGED` updates SyncStatus banner and logs columnsVersion.</idea></ideas>
+  </tests>
+</story-context>

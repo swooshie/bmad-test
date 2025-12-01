@@ -1,0 +1,94 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>C</epicId>
+    <storyId>3.7</storyId>
+    <title>Device detail drawer with audit timeline ribbon</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-14</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/3-7-device-detail-drawer-with-audit-timeline-ribbon.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As an NYU admissions manager</asA>
+    <iWant>I want a device detail drawer with an audit timeline ribbon that mirrors anonymization cues</iWant>
+    <soThat>I can inspect hardware history, governance badges, and trigger handoff actions without leaving the dashboard grid</soThat>
+    <tasks><task-list>
+      <task id="T1" ac="AC1" artifact="nyu-device-roster/src/app/(manager)/devices/components/DeviceDrawer.tsx">Build the DeviceDrawer shell that subscribes to grid selection, preloads device metadata, and renders anonymization chips plus CTA stack.</task>
+      <task id="T1a" parent="T1" ac="AC1" artifact="nyu-device-roster/src/app/(manager)/devices/hooks/useDeviceGrid.ts">Extend the shared hook/store so drawer selection stays in sync with grid virtualization and optimistic refresh.</task>
+      <task id="T1b" parent="T1" ac="AC1" artifact="nyu-device-roster/src/app/api/devices/[deviceId]/route.ts">Expose a detail endpoint returning device + governance metadata, reusing `models/Device.ts` and anonymization helper outputs.</task>
+      <task id="T2" ac="AC2" artifact="nyu-device-roster/src/app/(manager)/devices/components/AuditTimeline.tsx">Implement the audit timeline ribbon that calls `/api/audit?deviceId=` and renders sync/anonymization/handoff events with badges + tooltips.</task>
+      <task id="T2a" parent="T2" ac="AC2" artifact="nyu-device-roster/src/app/api/audit/route.ts">Add `/api/audit` route (or extend existing D1 endpoint) that queries `models/SyncEvent.ts`, filters by deviceId, and returns chronological entries without TTL limits.</task>
+      <task id="T3" ac="AC1,AC3" artifact="nyu-device-roster/src/app/(manager)/devices/actions/deviceActions.ts">Wire Export Audit Snapshot + Initiate Handoff buttons that call their APIs, emit structured logs, and refresh drawer state.</task>
+      <task id="T3a" parent="T3" ac="AC3" artifact="nyu-device-roster/src/lib/logging.ts">Augment logging helpers with `event: DEVICE_DRAWER_ACTION` + `ANONYMIZATION_CHIP_VIEWED` payloads used by drawer interactions.</task>
+      <task id="T4" ac="AC3" artifact="docs/governance-banner-runbook.md">Document focus order, return-to-row expectation, and audit ribbon usage so demo operators understand governance implications.</task>
+      <task id="T5" ac="AC1-AC3" artifact="nyu-device-roster/tests/unit/app/device-drawer.test.tsx">Add tests covering drawer open/close, timeline hydration, accessibility contracts, and API/audit logging integration.</task>
+    </task-list></tasks>
+  </story>
+
+  <acceptanceCriteria><criteria>
+      <criterion id="AC1">Drawer opens from grid selection, displaying device metadata, anonymization chips, and action buttons without navigating away from the grid.</criterion>
+      <criterion id="AC2">Audit timeline ribbon consumes `/api/audit` to show sync/anonymization/handoff events with rich badges and tooltips.</criterion>
+      <criterion id="AC3">Drawer honors accessibility + responsive specs (Esc closes, focus returns to row, desktop overlay vs. tablet slide-over) and logs every action.</criterion>
+    </criteria></acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact path="docs/epics.md" title="Epic C – Manager Dashboard" section="Story C7" >Epic C7 explains the drawer’s purpose, actions, and audit ribbon expectations with prerequisites on C2 + D1 (docs/epics.md:226-233).</artifact>
+      <artifact path="docs/epics.md" title="Epic D – Governance & Observability" section="Story D1" >D1 introduces audit APIs feeding the ribbon; reuse its persistence expectations (docs/epics.md:283-289).</artifact>
+      <artifact path="docs/PRD.md" title="PRD" section="FR-007–FR-011" >PRD performance/governance sections require traceability, anonymization cues, and accessible controls (docs/PRD.md:173-184,210-214).</artifact>
+      <artifact path="docs/architecture.md" title="Architecture" section="Manager Dashboard Architecture" >Architecture lists feature folders, React Query hooks, logging stack, and audit models relevant to the drawer (docs/architecture.md:45-205).</artifact>
+      <artifact path="docs/stories/3-6-governance-reminder-banner-and-anonymization-presets.md" title="Story 3.6" section="Structure Alignment" >Story 3.6 documents shared anonymization state/presets that the drawer chips must mirror.</artifact>
+      <artifact path="docs/ux-design-directions.html" title="UX Design Directions" section="Device Drawer & Timeline" >UX mocks define the 4-column drawer layout, timeline beads, and CTA placement guiding this implementation.</artifact>
+    </docs>
+    <code>
+      <artifact path="nyu-device-roster/src/models/Device.ts" kind="model" symbol="DeviceModel" lines="1-44" reason="Source of canonical device fields displayed in the drawer metadata."></artifact>
+      <artifact path="nyu-device-roster/src/models/SyncEvent.ts" kind="model" symbol="SyncEventModel" lines="1-140" reason="Audit timeline ribbon queries SyncEvent documents to show sync/anonymization/handoff events."></artifact>
+      <artifact path="nyu-device-roster/src/lib/audit/syncEvents.ts" kind="service" symbol="recordAllowlistChangeEvent" lines="1-120" reason="Existing audit helpers demonstrate how to persist governance events; reuse patterns for drawer actions."></artifact>
+      <artifact path="nyu-device-roster/src/lib/logging.ts" kind="utility" symbol="logger" lines="1-80" reason="Structured logging ensures drawer interactions appear in Cloud Logging + dashboards."></artifact>
+      <artifact path="nyu-device-roster/src/app/api/sync/manual/route.ts" kind="api" symbol="POST /api/sync/manual" lines="1-120" reason="Reference for Next.js API route structure, session enforcement, and logging to mimic in new audit/preset endpoints."></artifact>
+      <artifact path="nyu-device-roster/tests/integration/sync.test.ts" kind="test" symbol="sync integration" lines="1-120" reason="Shows how integration tests exercise API + logging pipelines—useful template for audit timeline regression tests."></artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="next" version="16.0.1" reason="Hosts dashboard components and API routes for drawer/audit data." />
+        <package name="react" version="19.2.0" reason="Used for drawer components, hooks, and responsive animations." />
+        <package name="next-auth" version="^4.24.13" reason="Ensures only authenticated managers access drawer actions and audit logs." />
+        <package name="mongoose" version="^8.19.3" reason="Backs Device and SyncEvent models powering drawer + timeline data." />
+        <package name="pino" version="^10.1.0" reason="Structured logging for drawer actions and audit telemetry." />
+        <package name="zod" version="^4.1.12" reason="Validates detail and audit API payloads/params." />
+        <package name="vitest" version="^4.0.7" reason="Unit/component tests for drawer, timeline, and hooks." />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Reuse anonymization helper + presets from Stories C4/C6 so chips and drawer actions stay deterministic.</constraint>
+    <constraint>Drawer must live under `app/(manager)/devices` and reuse grid selection state to avoid duplicate data sources.</constraint>
+    <constraint>Audit timeline data should stream from `SyncEvent` documents—no client-side filtering that risks TTL gaps.</constraint>
+    <constraint>All Export/Handoff actions log via `lib/logging.ts` and audit helpers with actor, deviceId, and outcome.</constraint>
+    <constraint>Accessibility: focus traps inside drawer, `Esc` closes, and focus returns to originating grid row.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="DeviceDrawer" kind="component" signature="<DeviceDrawer deviceId={selectedId} onClose={...} />" >
+      <path>nyu-device-roster/src/app/(manager)/devices/components/DeviceDrawer.tsx</path>
+    </interface>
+    <interface name="GET /api/audit" kind="REST" signature="GET /api/audit?deviceId=NYU-001 → { data: AuditEvent[]; error: null }" >
+      <path>nyu-device-roster/src/app/api/audit/route.ts</path>
+    </interface>
+    <interface name="POST /api/devices/actions/export" kind="REST" signature="POST /api/devices/actions/export { deviceId } → { data: { url }, error: null }" >
+      <path>nyu-device-roster/src/app/api/devices/actions/export/route.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Use Vitest + React Testing Library for drawer/timeline components, add integration tests under `tests/integration` for audit APIs, and include Playwright coverage for accessibility/return-to-row behavior.</standards>
+    <locations>nyu-device-roster/tests/unit/app; nyu-device-roster/tests/unit/lib; nyu-device-roster/tests/integration; nyu-device-roster/tests/performance</locations>
+    <ideas>
+      <idea ac="AC1">Component test verifying drawer renders device metadata + anonymization chips and closes via Esc with focus restoration.</idea>
+      <idea ac="AC2">API test mocking SyncEvent documents to ensure `/api/audit` returns multi-type events with badges/tooltips mapped correctly.</idea>
+      <idea ac="AC3">Playwright test selecting a grid row, opening the drawer, triggering Export Audit Snapshot, and confirming structured logs fire plus focus returns on close.</idea>
+    </ideas>
+  </tests>
+</story-context>

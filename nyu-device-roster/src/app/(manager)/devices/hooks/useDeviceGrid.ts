@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { API_ROUTES } from "@/lib/routes";
@@ -23,14 +23,15 @@ import type {
   DeviceGridDevice,
   DeviceGridMeta,
 } from "@/app/api/devices/device-query-service";
-import { DEVICE_COLUMNS, type DeviceColumn, type DeviceColumnId } from "../types";
+import { DEVICE_COLUMNS, DEVICE_COLUMNS_VERSION, type DeviceColumn, type DeviceColumnId } from "../types";
 
-const COLUMN_STORAGE_KEY = "nyu-device-grid-columns:v1";
+const COLUMN_STORAGE_KEY = "nyu-device-grid-columns";
 
 type DeviceGridResponse =
   | {
       data: {
         devices: DeviceGridDevice[];
+        columns: DeviceColumn[];
       };
       meta: DeviceGridMeta;
       error: null;
@@ -41,44 +42,66 @@ type DeviceGridResponse =
       error: { code: string; message: string };
     };
 
-const persistColumns = (columns: DeviceColumn[]) => {
+type ColumnPreference = { id: DeviceColumnId; visible: boolean };
+
+type StoredColumns = {
+  version: string;
+  preferences: ColumnPreference[];
+};
+
+const normalizeDefinitions = (definitions: DeviceColumn[]): DeviceColumn[] =>
+  definitions
+    .slice()
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map((column) => ({ ...column, visible: column.visible !== false }));
+
+const readStoredColumns = (): StoredColumns | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const stored = window.localStorage.getItem(COLUMN_STORAGE_KEY);
+  if (!stored) {
+    return null;
+  }
+  try {
+    return JSON.parse(stored) as StoredColumns;
+  } catch {
+    return null;
+  }
+};
+
+const persistColumns = (columns: DeviceColumn[], version: string) => {
   if (typeof window === "undefined") {
     return;
   }
   window.localStorage.setItem(
     COLUMN_STORAGE_KEY,
-    JSON.stringify(
-      columns.map((column) => ({
+    JSON.stringify({
+      version,
+      preferences: columns.map((column) => ({
         id: column.id,
         visible: column.visible !== false,
-      }))
-    )
+      })),
+    } satisfies StoredColumns)
   );
 };
 
-const hydrateColumns = (): DeviceColumn[] => {
+const hydrateColumns = (definitions: DeviceColumn[], version: string): DeviceColumn[] => {
   if (typeof window === "undefined") {
-    return DEVICE_COLUMNS;
+    return normalizeDefinitions(definitions);
   }
-  const stored = window.localStorage.getItem(COLUMN_STORAGE_KEY);
-  if (!stored) {
-    return DEVICE_COLUMNS;
+  const stored = readStoredColumns();
+  const normalized = normalizeDefinitions(definitions);
+  if (!stored || stored.version !== version) {
+    return normalized;
   }
-  try {
-    const parsed = JSON.parse(stored) as Array<{ id: DeviceColumnId; visible: boolean }>;
-    return DEVICE_COLUMNS.map((column) => {
-      const storedColumn = parsed.find((entry) => entry.id === column.id);
-      if (!storedColumn) {
-        return column;
-      }
-      return {
-        ...column,
-        visible: storedColumn.visible,
-      };
-    });
-  } catch {
-    return DEVICE_COLUMNS;
-  }
+  return normalized.map((column) => {
+    const pref = stored.preferences.find((entry) => entry.id === column.id);
+    if (!pref) {
+      return column;
+    }
+    return { ...column, visible: pref.visible };
+  });
 };
 
 export type UseDeviceGridResult = {
@@ -115,12 +138,13 @@ export function useDeviceGrid(): UseDeviceGridResult {
     );
   }, [searchParams]);
 
-  const [columns, setColumns] = useState<DeviceColumn[]>(() => DEVICE_COLUMNS);
+  const [columnsVersion, setColumnsVersion] = useState(DEVICE_COLUMNS_VERSION);
+  const defaultColumnsRef = useRef<DeviceColumn[]>(normalizeDefinitions(DEVICE_COLUMNS));
+  const columnsInitializedRef = useRef(false);
+  const [columns, setColumns] = useState<DeviceColumn[]>(() =>
+    hydrateColumns(defaultColumnsRef.current, DEVICE_COLUMNS_VERSION)
+  );
   const [liveMessage, setLiveMessage] = useState("Device grid ready");
-
-  useEffect(() => {
-    setColumns(hydrateColumns());
-  }, []);
 
   const visibleColumns = useMemo(
     () => columns.filter((column) => column.visible !== false),
@@ -141,15 +165,16 @@ export function useDeviceGrid(): UseDeviceGridResult {
       const next = current.map((column) =>
         column.id === columnId ? { ...column, visible } : column
       );
-      persistColumns(next);
+      persistColumns(next, columnsVersion);
       return next;
     });
-  }, []);
+  }, [columnsVersion]);
 
   const resetColumns = useCallback(() => {
-    persistColumns(DEVICE_COLUMNS);
-    setColumns(DEVICE_COLUMNS);
-  }, []);
+    const defaults = normalizeDefinitions(defaultColumnsRef.current);
+    persistColumns(defaults, columnsVersion);
+    setColumns(defaults);
+  }, [columnsVersion]);
 
   const queryKey = useMemo(
     () => ["devices-grid", buildDeviceGridSearchParams(queryState).toString()],
@@ -182,6 +207,33 @@ export function useDeviceGrid(): UseDeviceGridResult {
     staleTime: 30_000,
     keepPreviousData: true,
   });
+
+  useEffect(() => {
+    if (!data?.data?.columns) {
+      return;
+    }
+    const remoteVersion = data.meta?.columnsVersion ?? DEVICE_COLUMNS_VERSION;
+    const normalized = normalizeDefinitions(data.data.columns);
+    defaultColumnsRef.current = normalized;
+    const structureChanged =
+      normalized.length !== columns.length ||
+      normalized.some((column) => !columns.find((existing) => existing.id === column.id));
+
+    if (
+      !columnsInitializedRef.current ||
+      structureChanged ||
+      remoteVersion !== columnsVersion
+    ) {
+      columnsInitializedRef.current = true;
+      setColumnsVersion(remoteVersion);
+      const hydrated = hydrateColumns(normalized, remoteVersion);
+      setColumns(hydrated);
+      persistColumns(hydrated, remoteVersion);
+      return;
+    }
+
+    columnsInitializedRef.current = true;
+  }, [columns, columnsVersion, data?.data?.columns, data?.meta?.columnsVersion]);
 
   const rows = data?.data.devices ?? [];
   const meta = data?.meta ?? null;
